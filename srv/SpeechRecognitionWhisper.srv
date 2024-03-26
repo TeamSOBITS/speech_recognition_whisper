@@ -1,0 +1,3 @@
+int64 timeout_sec     #[s]
+---
+string[] transcript   # candidate words of speech-to-text API
