@@ -13,6 +13,8 @@ sudo apt-get install ffmpeg
 
 sudo apt-get install python-pyaudio python3-pyaudio
 
+pip3 install playsound
+
 cd ~/catkin_ws/src/speech_recognition_whisper/
 python3 setup.py
 
