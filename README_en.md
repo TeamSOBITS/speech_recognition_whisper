@@ -96,7 +96,7 @@
 ```sh
 roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 ```
-これでServierが起動します．\
+これでServierが起動します．
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
