@@ -2,7 +2,7 @@ import whisper
 
 ## modelのダウンロード
 model = whisper.load_model("small")
-print("aaa")
+
 ## モデルを通して音声ファイルを通す
 result = model.transcribe("../sound_file/output.wav")
 

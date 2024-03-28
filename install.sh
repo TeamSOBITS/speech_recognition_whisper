@@ -11,7 +11,7 @@ pip3 install git+https://github.com/openai/whisper.git
 
 sudo apt-get install ffmpeg
 
-sudo apt-get install python-pyaudio python3-pyaudio
+sudo apt-get install python3-pyaudio
 
 pip3 install playsound
 

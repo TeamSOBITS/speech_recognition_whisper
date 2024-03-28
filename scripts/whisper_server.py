@@ -18,7 +18,6 @@ class WhisperServer():
         self.sample_rate = int(rospy.get_param("/whisper_server/sample_rate"))
         self.chunk_size = int(rospy.get_param("/whisper_server/chunk_size"))
         self.channels = int(rospy.get_param("/whisper_server/channels"))
-        # self.audio = pyaudio.PyAudio()
         self.audio_format=pyaudio.paInt16
         rospy.Service("/speech_recognition", SpeechRecognitionWhisper, self.speech_to_text)
         rospy.loginfo("Waiting for service...")
@@ -29,8 +28,8 @@ class WhisperServer():
     def speech_to_text(self, mrv):
         playsound(self.path + "/mp3/start_sound.mp3")
         # 録音開始
-        self.audio = pyaudio.PyAudio()
-        stream = self.audio.open(format=self.audio_format,
+        audio = pyaudio.PyAudio()
+        stream = audio.open(format=self.audio_format,
                             channels=self.channels,
                             rate=self.sample_rate,
                             input=True,
@@ -46,12 +45,12 @@ class WhisperServer():
 
         stream.stop_stream()
         stream.close()
-        self.audio.terminate()
+        audio.terminate()
 
         # 音声ファイルの書き出し
         wf = wave.open(self.path + "/sound_file/output.wav", 'wb')
         wf.setnchannels(self.channels)
-        wf.setsampwidth(self.audio.get_sample_size(self.audio_format))
+        wf.setsampwidth(audio.get_sample_size(self.audio_format))
         wf.setframerate(self.sample_rate)
         wf.writeframes(b''.join(frames))
         wf.close()
