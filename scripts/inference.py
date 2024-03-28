@@ -2,9 +2,9 @@ import whisper
 
 ## modelのダウンロード
 model = whisper.load_model("small")
-
+print("aaa")
 ## モデルを通して音声ファイルを通す
-result = model.transcribe("../sound_file/readyset.wav")
+result = model.transcribe("../sound_file/output.wav")
 
 ## これが文字起こし(Serviceの戻り値にしたい)
 print(result["text"])
