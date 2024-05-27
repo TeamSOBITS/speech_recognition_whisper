@@ -1,11 +1,14 @@
-# speech_recognition_whisper
-
 <a name="readme-top"></a>
 
 [JP](README.md) | [EN](README_en.md)
 
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+<!-- [![MIT License][license-shield]][license-url] -->
 
-# web_speech_recognition
+# speech_recognition_whisper
 
 <!-- 目次 -->
 <details>
@@ -15,17 +18,17 @@
       <a href="#概要">概要</a>
     </li>
     <li>
-      <a href="#環境構築">環境構築</a>
+      <a href="#セットアップ">セットアップ</a>
       <ul>
         <li><a href="#環境条件">環境条件</a></li>
         <li><a href="#インストール方法">インストール方法</a></li>
       </ul>
     </li>
     <li><a href="#実行・操作方法">実行・操作方法</a></li>
+    <li><a href="#マイルストーン">マイルストーン</a></li>
     <li><a href="#参考文献">参考文献</a></li>
   </ol>
 </details>
-
 
 
 <!-- レポジトリの概要 -->
@@ -33,11 +36,16 @@
 
 <!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
 
-ブラウザ上で動作する，APIによる音声認識機能です．
+ローカルで動作する，音声認識パッケージです．\
+他の音声認識パッケージと同じように，Service通信で使えます．\
+また，性質上GPUのPCを推奨します．
+
+> [!NOTE]
+> CPUでも動作しますが，返答に若干ラグがあります．
+> install.shまではオンラインで行ってください．
 
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
-
 
 
 <!-- セットアップ -->
@@ -92,20 +100,24 @@
 <!-- 実行・操作方法 -->
 ## 実行・操作方法
 
-### 1. launchファイルの起動
+### launchファイルの起動
 ```sh
 roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 ```
-これでServierが起動します．
+これでServerが起動します．
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
-## ノードに関して
-
-### Services:
- * /speech_recognition_whisper/speech_recognition (Service: speech_recognition_whisper/SpeechRecognition)
+### Services
+ * /speech_recognition (Service: speech_recognition_whisper/SpeechRecognitionWhisper)
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+
+
+<!-- マイルストーン -->
+## マイルストーン
+
+現時点のバッグや新規機能の依頼を確認するために[Issueページ](issues-url) をご覧ください．
 
 
 <!-- 参考文献 -->
@@ -113,8 +125,20 @@ roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 
 * [ROS Noetic](http://wiki.ros.org/noetic)
 
-<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+<!-- MARKDOWN LINKS & IMAGES -->
+<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+[contributors-shield]: https://img.shields.io/github/contributors/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
+[contributors-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
+[forks-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/network/members
+[stars-shield]: https://img.shields.io/github/stars/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
+[stars-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/stargazers
+[issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
+[issues-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/issues
+[license-shield]: https://img.shields.io/github/license/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
+[license-url]: LICENSE
 
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
