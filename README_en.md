@@ -53,8 +53,6 @@ GPU PC is recommended due to its nature.
 
 This section describes how to set up this repository.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ### Requirements
 
 
