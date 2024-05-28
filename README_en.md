@@ -71,21 +71,21 @@ This section describes how to set up this repository.
 ### Installation
 
 1. Change directory
-  ```sh
-  $ cd　~/catkin_ws/src/
-  ```
+   ```sh
+   $ cd ~/catkin_ws/src
+   ```
 2. clone TeamSOBITS/speech_recognition_whisper
-  ```
+   ```sh
    $ git clone https://github.com/TeamSOBITS/speech_recognition_whisper.git
-  ```
+   ```
 3. Change directory
-  ```sh
-  $ cd speech_recognition_whisper/
-  ```
+   ```sh
+   $ cd speech_recognition_whisper/
+   ```
 4. Install dependent packages
-  ```sh
-  $ bash install.sh
-  ```
+   ```sh
+   $ bash install.sh
+   ```
 5. compile
    ```sh
    $ cd ~/catkin_ws/
@@ -141,4 +141,4 @@ See the [open issues][issues-url] for a full list of proposed features (and know
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[]: 
+<!-- []:  -->

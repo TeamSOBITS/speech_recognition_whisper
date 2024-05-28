@@ -141,4 +141,4 @@ roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[]: 
+<!-- []:  -->
