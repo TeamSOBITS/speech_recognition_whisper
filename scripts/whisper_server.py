@@ -2,7 +2,7 @@
 # coding: utf-8
 import rospy
 import roslib.packages
-from speech_recognition_whisper.srv import SpeechRecognitionWhisper, SpeechRecognitionWhisperResponse
+from sobits_msgs.srv import SpeechRecognition, SpeechRecognitionResponse
 import whisper
 import pyaudio
 import wave
@@ -19,7 +19,7 @@ class WhisperServer():
         self.chunk_size = int(rospy.get_param("/whisper_server/chunk_size"))
         self.channels = int(rospy.get_param("/whisper_server/channels"))
         self.audio_format=pyaudio.paInt16
-        rospy.Service("/speech_recognition", SpeechRecognitionWhisper, self.speech_to_text)
+        rospy.Service("/speech_recognition", SpeechRecognition, self.speech_to_text)
         rospy.loginfo("Waiting for service...")
         rospy.spin()
 
@@ -57,7 +57,7 @@ class WhisperServer():
 
         result = self.model.transcribe(self.path + "/sound_file/output.wav")
         print(result["text"])
-        return SpeechRecognitionWhisperResponse(transcript = [result["text"]])
+        return SpeechRecognitionResponse(transcript = [result["text"]])
 
 
 
