@@ -107,7 +107,7 @@ This will start the Server.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Services
- * /speech_recognition (Service: speech_recognition_whisper/SpeechRecognitionWhisper)
+ * /speech_recognition (Service: sobits_msgs/SpeechRecognitionWhisper)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
