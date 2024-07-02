@@ -107,7 +107,7 @@ roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 ### Services
- * /speech_recognition (Service: speech_recognition_whisper/SpeechRecognitionWhisper)
+ * /speech_recognition (Service: sobits_msgs/SpeechRecognition)
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
