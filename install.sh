@@ -23,4 +23,9 @@ cd ~/colcon_ws/src/
 # git clone https://github.com/TeamSOBITS/sobits_msgs.git
 # cd ~/colcon_ws/src/speech_recognition_vosk/
 
+# Install "alsamixer"
+sudo apt-get remove --purge alsa-base pulseaudio
+sudo apt-get install alsa-base pulseaudio
+sudo alsa force-reload
+
 echo "╚══╣ Install: Speech Recognition Whisper (FINISHED) ╠══╝"

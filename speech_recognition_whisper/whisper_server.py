@@ -42,12 +42,16 @@ class WhisperServer(Node):
         
         # Record audio
         audio = pyaudio.PyAudio()
-        stream = audio.open(format=self.audio_format,
-                            channels=self.channels,
-                            rate=self.sample_rate,
-                            input=True,
-                            frames_per_buffer=self.chunk_size)
-    
+        try:
+            stream = audio.open(format=self.audio_format,
+                                channels=self.channels,
+                                rate=self.sample_rate,
+                                input=True,
+                                frames_per_buffer=self.chunk_size)
+        except Exception as e:
+            self.get_logger().error(f"Audio stream error: {e}")
+            return response
+        
         frames = []
         for _ in range(int(self.sample_rate / self.chunk_size * request.timeout_sec)):
             data = stream.read(self.chunk_size)
@@ -71,6 +75,7 @@ class WhisperServer(Node):
         result = self.model.transcribe(os.path.join(self.path, 'sound_file', 'output.wav'))
         self.get_logger().info(f'Transcribed text: {result["text"]}')
         response.transcript = [result["text"]]
+        print(result["text"])
         return response
 
 def main(args=None):

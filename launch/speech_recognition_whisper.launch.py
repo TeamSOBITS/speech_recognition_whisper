@@ -11,7 +11,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'model': 'small.en'},
-                {'sample_rate': 44100},
+                {'sample_rate': 16000},
                 {'chunk_size': 1024},
                 {'channels': 1},
             ]
