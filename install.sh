@@ -15,12 +15,12 @@ sudo apt-get install python3-pyaudio
 
 pip3 install playsound
 
-cd ~/catkin_ws/src/speech_recognition_whisper/
-python3 setup.py
+cd ~/colcon_ws/src/speech_recognition_whisper/
+python3 install.py
 
 # Install "sobits_msgs"
-cd ~/catkin_ws/src/
-git clone https://github.com/TeamSOBITS/sobits_msgs.git
-cd ~/catkin_ws/src/speech_recognition_vosk/
+cd ~/colcon_ws/src/
+# git clone https://github.com/TeamSOBITS/sobits_msgs.git
+# cd ~/colcon_ws/src/speech_recognition_vosk/
 
 echo "╚══╣ Install: Speech Recognition Whisper (FINISHED) ╠══╝"
