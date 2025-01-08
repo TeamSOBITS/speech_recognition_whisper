@@ -9,11 +9,15 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.executors import MultiThreadedExecutor
 from sobits_interfaces.action import SpeechRecognition
 import whisper
+import time
 import pyaudio
 import wave
 from playsound import playsound
 import os
-import getpass
+from subprocess import Popen
+# import getpass
+
+from ament_index_python.packages import get_package_share_directory
 
 class WhisperServer(Node):
     def __init__(self):
@@ -24,17 +28,19 @@ class WhisperServer(Node):
         self.declare_parameter('sample_rate', 44100)
         self.declare_parameter('chunk_size', 1024)
         self.declare_parameter('channels', 1)
+        self.declare_parameter('use_feedback', True)
         
         # Get parameters
         self.model = whisper.load_model(self.get_parameter('model').get_parameter_value().string_value)
         self.sample_rate = self.get_parameter('sample_rate').get_parameter_value().integer_value
         self.chunk_size = self.get_parameter('chunk_size').get_parameter_value().integer_value
         self.channels = self.get_parameter('channels').get_parameter_value().integer_value
+        self.use_feedback = self.get_parameter('use_feedback').get_parameter_value().bool_value
         self.audio_format = pyaudio.paInt16
         
         # Define path for sound files
-        # self.path = os.path.join(os.path.dirname(__file__), '..', 'mp3')
-        self.path = "/home/" + str(getpass.getuser()) + "/colcon_ws/src/speech_recognition_whisper"
+        self.path = get_package_share_directory('speech_recognition_whisper')
+        self.sound_folder_path = os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3')
         
         # Create server
         self.server = ActionServer(
@@ -62,8 +68,19 @@ class WhisperServer(Node):
         feedback = SpeechRecognition.Feedback()
         response = SpeechRecognition.Result()
 
+        if (self.use_feedback):
+            f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'w', encoding='UTF-8')
+            f.write('MODEL NAME:' + str(self.get_parameter('model').get_parameter_value().string_value) + "\n")
+            f.write('RATE:' + str(1.0/float(goal_handle.request.feedback_rate)) + "\n")
+            f.write('EXIT:FALSE\n')
+            f.write('TEXT:')
+            f.close()
+
+            Popen(["python3", str(os.path.join(self.path, 'sound_file', 'wip_predict.py'))])
+
         # Play start sound
-        playsound(os.path.join(self.path, 'mp3', 'start_sound.mp3'))
+        if (not goal_handle.request.silent_mode):
+            playsound(os.path.join(self.sound_folder_path, 'start_sound.mp3'))
         
         # Record audio
         audio = pyaudio.PyAudio()
@@ -75,23 +92,52 @@ class WhisperServer(Node):
                                 frames_per_buffer=self.chunk_size)
         except Exception as e:
             self.get_logger().error(f"Audio stream error: {e}")
-            return response
         
         frames = []
-        for _ in range(int(self.sample_rate / self.chunk_size * goal_handle.request.timeout_sec)):
+        wip_frames = []
+        last_feedback_time = time.time()
+        for _ in range(int(self.sample_rate / self.chunk_size * (goal_handle.request.timeout_sec + 1))):
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
                 self.get_logger().info('Goal canceled')
-                response.is_cancel = True
+                response.result_text = ""
                 return response
-            data = stream.read(self.chunk_size)
+
+            # time.sleep(1.0 / self.sample_rate * self.chunk_size)
+            time.sleep(1.0 / self.sample_rate)
+            data = stream.read(self.chunk_size, exception_on_overflow=False)
             frames.append(data)
-            feedback.wip_result = []
-            self.get_logger().info('Publishing feedback: {0}'.format(feedback.wip_result))
-            goal_handle.publish_feedback(feedback)
-        
+
+            
+            if (self.use_feedback):
+                wip_frames.append(data)
+
+                if ((time.time() - last_feedback_time) > (1.0/float(goal_handle.request.feedback_rate))):
+                    with wave.open(os.path.join(self.path, 'sound_file', 'wip_output.wav'), 'wb') as wf:
+                        wf.setnchannels(self.channels)
+                        wf.setsampwidth(audio.get_sample_size(self.audio_format))
+                        wf.setframerate(self.sample_rate)
+                        wf.writeframes(b''.join(wip_frames))
+                    # time.sleep(1.0 / self.sample_rate)
+                    f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'r', encoding='UTF-8')
+                    feedback.addition_text = str(f.read().split("\n")[3].split(":")[1])
+                    f.close()
+                    self.get_logger().info('Publishing feedback: {0}'.format(feedback.addition_text))
+                    goal_handle.publish_feedback(feedback)
+                    wip_frames = []
+                    last_feedback_time = time.time()
+
+        if (self.use_feedback):
+            f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'w', encoding='UTF-8')
+            f.write('MODEL NAME:' + str(self.get_parameter('model').get_parameter_value().string_value) + "\n")
+            f.write('RATE:' + str(1.0/float(goal_handle.request.feedback_rate)) + "\n")
+            f.write('EXIT:TRUE\n')
+            f.write('TEXT:')
+            f.close()
+
         # Stop recording and play end sound
-        playsound(os.path.join(self.path, 'mp3', 'end_sound.mp3'))
+        if (not goal_handle.request.silent_mode):
+            playsound(os.path.join(self.sound_folder_path, 'end_sound.mp3'))
 
         stream.stop_stream()
         stream.close()
@@ -102,16 +148,14 @@ class WhisperServer(Node):
             wf.setnchannels(self.channels)
             wf.setsampwidth(audio.get_sample_size(self.audio_format))
             wf.setframerate(self.sample_rate)
-            wf.writeframes(b''.join(frames))        
+            wf.writeframes(b''.join(frames))
         
         # Transcribe audio
-        goal_handle.succeed()
         result = self.model.transcribe(os.path.join(self.path, 'sound_file', 'output.wav'))
-        self.get_logger().info(f'Transcribed text: {result["text"]}')
-        
-        response.transcript = [result["text"]]
-        response.is_cancel = False
+
         self.get_logger().info('Returning result: {}'.format(result["text"]))
+        response.result_text = result["text"]
+        goal_handle.succeed()
         return response
 
 def main(args=None):

@@ -1,0 +1,4 @@
+MODEL NAME:small.en
+RATE:1.0
+FLAG:TRUE
+TEXT:
