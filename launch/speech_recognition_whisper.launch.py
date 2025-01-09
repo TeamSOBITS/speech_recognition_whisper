@@ -11,11 +11,11 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {
-                    'model': 'small.en',
+                    'model': 'small',
                     'sample_rate': 44100,
                     'chunk_size': 16000,
                     'channels': 1,
-                    'use_feedback': False,
+                    'use_feedback': True,
                 },
             ]
         ),

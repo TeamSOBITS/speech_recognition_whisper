@@ -14,7 +14,7 @@ import pyaudio
 import wave
 from playsound import playsound
 import os
-from subprocess import Popen
+import subprocess
 # import getpass
 
 from ament_index_python.packages import get_package_share_directory
@@ -51,6 +51,7 @@ class WhisperServer(Node):
             callback_group=ReentrantCallbackGroup(),
             goal_callback=self.goal_callback,
             cancel_callback=self.cancel_callback)
+
         self.get_logger().info('Whisper Server is ready and waiting for service requests.')
 
     def goal_callback(self, goal_request):
@@ -69,6 +70,10 @@ class WhisperServer(Node):
         response = SpeechRecognition.Result()
 
         if (self.use_feedback):
+            if os.path.exists(os.path.join(self.path, 'sound_file', 'wip_output.wav')):
+                cmd = "rm %s" % (os.path.join(self.path, 'sound_file', 'wip_output.wav'))
+                subprocess.call(cmd, shell=True)
+
             f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'w', encoding='UTF-8')
             f.write('MODEL NAME:' + str(self.get_parameter('model').get_parameter_value().string_value) + "\n")
             f.write('RATE:' + str(1.0/float(goal_handle.request.feedback_rate)) + "\n")
@@ -76,7 +81,7 @@ class WhisperServer(Node):
             f.write('TEXT:')
             f.close()
 
-            Popen(["python3", str(os.path.join(self.path, 'sound_file', 'wip_predict.py'))])
+            subprocess.Popen(["python3", str(os.path.join(self.path, 'sound_file', 'wip_predict.py'))])
 
         # Play start sound
         if (not goal_handle.request.silent_mode):
