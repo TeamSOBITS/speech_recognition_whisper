@@ -15,8 +15,8 @@ def generate_launch_description():
                     {
                         "model": "small",
                         "launguage": "ja",
-                        "initial_prompt": "",
-                        "prompt": "",
+                        "initial_prompt": "ガタタンラーメン",
+                        "prompt": "ガタタンラーメン",
                         "task": "transcribe",
                         "sample_rate": 44100,
                         "chunk_size": 16000,
