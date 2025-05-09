@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -21,23 +22,23 @@ class WhisperServer(Node):
 
         self.declare_parameter('model', 'base')
         self.declare_parameter('launguage', 'en')
-        self.declare_parameter('initial_prompt', '')
-        self.declare_parameter('prompt', '')
+        self.declare_parameter('replace_prompt_whisper', [""])
         self.declare_parameter('task', 'transcribe')
         self.declare_parameter('sample_rate', 44100)
         self.declare_parameter('chunk_size', 1024)
         self.declare_parameter('channels', 1)
         self.declare_parameter('use_feedback', True)
+        self.declare_parameter('use_prompt', True)
 
         self.model = whisper.load_model(self.get_parameter('model').get_parameter_value().string_value)
         self.launguage = self.get_parameter('launguage').get_parameter_value().string_value
-        self.initial_prompt = self.get_parameter('initial_prompt').get_parameter_value().string_value
-        self.prompt = self.get_parameter('prompt').get_parameter_value().string_value
+        self.prompt = self.get_parameter('replace_prompt_whisper').get_parameter_value().string_array_value
         self.task = self.get_parameter('task').get_parameter_value().string_value
         self.sample_rate = self.get_parameter('sample_rate').get_parameter_value().integer_value
         self.chunk_size = self.get_parameter('chunk_size').get_parameter_value().integer_value
         self.channels = self.get_parameter('channels').get_parameter_value().integer_value
         self.use_feedback = self.get_parameter('use_feedback').get_parameter_value().bool_value
+        self.use_prompt = self.get_parameter('use_prompt').get_parameter_value().bool_value
         self.audio_format = pyaudio.paInt16
 
         self.path = get_package_share_directory('speech_recognition_whisper')
@@ -150,13 +151,20 @@ class WhisperServer(Node):
             wf.writeframes(b''.join(frames))
 
         self.get_logger().info('Starting transcription.')
-        result = self.model.transcribe(
-                    os.path.join(self.path, 'sound_file', 'output.wav'),
-                    language=self.launguage,
-                    prompt=self.prompt,
-                    task=self.task,
-                    initial_prompt=self.initial_prompt
-        )
+
+        if (self.use_prompt and (len(self.prompt)!=0) and (self.prompt[0]!="")):
+            result = self.model.transcribe(
+                        os.path.join(self.path, 'sound_file', 'output.wav'),
+                        language=self.launguage,
+                        task=self.task,
+                        initial_prompt=" ".join(self.prompt),
+            )
+        else:
+            result = self.model.transcribe(
+                        os.path.join(self.path, 'sound_file', 'output.wav'),
+                        language=self.launguage,
+                        task=self.task,
+            )
         self.get_logger().info('Transcription finished. Result: {}'.format(result["text"]))
         response.result_text = result["text"]
         goal_handle.succeed()
