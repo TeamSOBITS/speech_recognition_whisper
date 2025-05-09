@@ -1,0 +1,20 @@
+/**:
+  ros__parameters:
+    replace_prompt_whisper:
+      - "noodles"
+      - "tea Bag"
+      - "potato chips"
+      - "redbull"
+      - "aquarius"
+      - "lychee"
+      - "coffee"
+      - "detergent"
+      - "cup"
+      - "lunch box"
+      - "bowl"
+      - "dice"
+      - "light bulb"
+      - "block"
+      - "glue gun"
+      - "yes"
+      - "no"
