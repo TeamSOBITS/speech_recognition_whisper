@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-# coding: utf-8
+# -*- coding:utf-8 -*-
 import rclpy
 from rclpy.node import Node
-from rclpy.parameter import Parameter
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import ExternalShutdownException
@@ -15,34 +13,37 @@ import wave
 from playsound import playsound
 import os
 import subprocess
-# import getpass
 
 from ament_index_python.packages import get_package_share_directory
 
 class WhisperServer(Node):
     def __init__(self):
         super().__init__('whisper_server')
-        
-        # Declare parameters
+
         self.declare_parameter('model', 'base')
+        self.declare_parameter('launguage', 'en')
+        self.declare_parameter('replace_prompt_whisper', [""])
+        self.declare_parameter('task', 'transcribe')
         self.declare_parameter('sample_rate', 44100)
         self.declare_parameter('chunk_size', 1024)
         self.declare_parameter('channels', 1)
         self.declare_parameter('use_feedback', True)
-        
-        # Get parameters
+        self.declare_parameter('use_prompt', True)
+
         self.model = whisper.load_model(self.get_parameter('model').get_parameter_value().string_value)
+        self.launguage = self.get_parameter('launguage').get_parameter_value().string_value
+        self.prompt = self.get_parameter('replace_prompt_whisper').get_parameter_value().string_array_value
+        self.task = self.get_parameter('task').get_parameter_value().string_value
         self.sample_rate = self.get_parameter('sample_rate').get_parameter_value().integer_value
         self.chunk_size = self.get_parameter('chunk_size').get_parameter_value().integer_value
         self.channels = self.get_parameter('channels').get_parameter_value().integer_value
         self.use_feedback = self.get_parameter('use_feedback').get_parameter_value().bool_value
+        self.use_prompt = self.get_parameter('use_prompt').get_parameter_value().bool_value
         self.audio_format = pyaudio.paInt16
-        
-        # Define path for sound files
+
         self.path = get_package_share_directory('speech_recognition_whisper')
         self.sound_folder_path = os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3')
-        
-        # Create server
+
         self.server = ActionServer(
             self,
             SpeechRecognition,
@@ -55,13 +56,10 @@ class WhisperServer(Node):
         self.get_logger().info('Whisper Server is ready and waiting for service requests.')
 
     def goal_callback(self, goal_request):
-        """Accept or reject a client request to begin an action."""
-        # This server allows multiple goals in parallel
         self.get_logger().info('Received goal request')
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle):
-        """Accept or reject a client request to cancel an action."""
         self.get_logger().info('Received cancel request')
         return CancelResponse.ACCEPT
 
@@ -73,6 +71,9 @@ class WhisperServer(Node):
             if os.path.exists(os.path.join(self.path, 'sound_file', 'wip_output.wav')):
                 cmd = "rm %s" % (os.path.join(self.path, 'sound_file', 'wip_output.wav'))
                 subprocess.call(cmd, shell=True)
+            if os.path.exists(os.path.join(self.path, 'sound_file', 'output.wav')):
+                cmd = "rm %s" % (os.path.join(self.path, 'sound_file', 'output.wav'))
+                subprocess.call(cmd, shell=True)
 
             f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'w', encoding='UTF-8')
             f.write('MODEL NAME:' + str(self.get_parameter('model').get_parameter_value().string_value) + "\n")
@@ -83,11 +84,9 @@ class WhisperServer(Node):
 
             subprocess.Popen(["python3", str(os.path.join(self.path, 'sound_file', 'wip_predict.py'))])
 
-        # Play start sound
         if (not goal_handle.request.silent_mode):
             playsound(os.path.join(self.sound_folder_path, 'start_sound.mp3'))
-        
-        # Record audio
+
         audio = pyaudio.PyAudio()
         try:
             stream = audio.open(format=self.audio_format,
@@ -97,7 +96,7 @@ class WhisperServer(Node):
                                 frames_per_buffer=self.chunk_size)
         except Exception as e:
             self.get_logger().error(f"Audio stream error: {e}")
-        
+
         frames = []
         wip_frames = []
         last_feedback_time = time.time()
@@ -108,12 +107,10 @@ class WhisperServer(Node):
                 response.result_text = ""
                 return response
 
-            # time.sleep(1.0 / self.sample_rate * self.chunk_size)
             time.sleep(1.0 / self.sample_rate)
             data = stream.read(self.chunk_size, exception_on_overflow=False)
             frames.append(data)
 
-            
             if (self.use_feedback):
                 wip_frames.append(data)
 
@@ -123,7 +120,6 @@ class WhisperServer(Node):
                         wf.setsampwidth(audio.get_sample_size(self.audio_format))
                         wf.setframerate(self.sample_rate)
                         wf.writeframes(b''.join(wip_frames))
-                    # time.sleep(1.0 / self.sample_rate)
                     f = open(os.path.join(self.path, 'sound_file', 'wip_result.txt'), 'r', encoding='UTF-8')
                     feedback.addition_text = str(f.read().split("\n")[3].split(":")[1])
                     f.close()
@@ -140,7 +136,6 @@ class WhisperServer(Node):
             f.write('TEXT:')
             f.close()
 
-        # Stop recording and play end sound
         if (not goal_handle.request.silent_mode):
             playsound(os.path.join(self.sound_folder_path, 'end_sound.mp3'))
 
@@ -148,17 +143,29 @@ class WhisperServer(Node):
         stream.close()
         audio.terminate()
 
-        # Save the recorded audio
+        self.get_logger().info('Saving audio to: {}'.format(os.path.join(self.path, 'sound_file', 'output.wav')))
         with wave.open(os.path.join(self.path, 'sound_file', 'output.wav'), 'wb') as wf:
             wf.setnchannels(self.channels)
             wf.setsampwidth(audio.get_sample_size(self.audio_format))
             wf.setframerate(self.sample_rate)
             wf.writeframes(b''.join(frames))
-        
-        # Transcribe audio
-        result = self.model.transcribe(os.path.join(self.path, 'sound_file', 'output.wav'))
 
-        self.get_logger().info('Returning result: {}'.format(result["text"]))
+        self.get_logger().info('Starting transcription.')
+
+        if (self.use_prompt and (len(self.prompt)!=0) and (self.prompt[0]!="")):
+            result = self.model.transcribe(
+                        os.path.join(self.path, 'sound_file', 'output.wav'),
+                        language=self.launguage,
+                        task=self.task,
+                        initial_prompt=" ".join(self.prompt),
+            )
+        else:
+            result = self.model.transcribe(
+                        os.path.join(self.path, 'sound_file', 'output.wav'),
+                        language=self.launguage,
+                        task=self.task,
+            )
+        self.get_logger().info('Transcription finished. Result: {}'.format(result["text"]))
         response.result_text = result["text"]
         goal_handle.succeed()
         return response
@@ -169,7 +176,6 @@ def main(args=None):
 
         server = WhisperServer()
 
-        # Use a MultiThreadedExecutor to enable processing goals concurrently
         executor = MultiThreadedExecutor()
 
         rclpy.spin(server, executor=executor)
