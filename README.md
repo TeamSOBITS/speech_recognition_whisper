@@ -37,7 +37,7 @@
 <!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
 
 ローカルで動作する，音声認識パッケージです．\
-他の音声認識パッケージと同じように，Service通信で使えます．\
+他の音声認識パッケージと同じように，Action通信で使えます．\
 また，性質上GPUのPCを推奨します．
 
 > [!NOTE]
@@ -59,12 +59,9 @@
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 20.04 (Focal Fossa) |
-| ROS | Noetic Ninjemys |
-| Python | 3.8 |
-
-> [!NOTE]
-> `Ubuntu`や`ROS`のインストール方法に関しては，[SOBITS Manual](https://github.com/TeamSOBITS/sobits_manual#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6)を参照してください．
+| Ubuntu | 22.04 (Jammy Jellyfish) |
+| ROS | Humble Hawksbill |
+| Python | 3.10 |
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
@@ -72,24 +69,29 @@
 
 1. ROSの`src`フォルダに移動します．
    ```sh
-   $ cd ~/catkin_ws/src
+   cd ~/colcon_ws/src/
    ```
 2. 本レポジトリをcloneします．
    ```sh
-   $ git clone https://github.com/TeamSOBITS/speech_recognition_whisper.git
+   git clone -b feature/humble-devel https://github.com/TeamSOBITS/speech_recognition_whisper.git
    ```
 3. レポジトリの中へ移動します．
    ```sh
-   $ cd speech_recognition_whisper/
+   cd speech_recognition_whisper/
    ```
 4. 依存パッケージをインストールします．
    ```sh
-   $ bash install.sh
+   bash install.sh
    ```
 5. パッケージをコンパイルします．
    ```sh
-   $ cd ~/catkin_ws/
-   $ catkin_make
+   cd ~/colcon_ws/
+   ```
+   ```sh
+   colcon build --symlink-install
+   ```
+   ```sh
+   source ~/colcon_ws/install/setup.sh
    ```
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
@@ -98,19 +100,38 @@
 <!-- 実行・操作方法 -->
 ## 実行・操作方法
 
-### launchファイルの起動
+1. Action Serverを起動します．
 ```sh
-roslaunch speech_recognition_whisper speech_recognition_whisper.launch
+ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 ```
-これでServerが起動します．
+2. Action Clientを起動します．
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
-### Services
- * /speech_recognition (Service: sobits_msgs/SpeechRecognition)
+### パラメータ
+[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)では以下のパラメータを指定できます．
+
+| パラメータ | 説明 | デフォルト値 |
+| --- | --- | --- |
+| model | [モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) | small |
+| launguage | [対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
+| task | 実行するタスクを指定します。"transcribe"（文字起こし）または"translate"（英語への翻訳）が選択できます。 | transcribe |
+| sample_rate | 1秒あたりの音声データ変換回数．高いほど音質が向上し，拾える周波数範囲が広がる．高くするとデータ量と負荷が増え，低くすると音質が劣化する可能性がある． | 44100 |
+| chunk_size | 一度に処理する音声データの塊のサイズ．リアルタイム性と処理負荷のバランスを決定する．大きくすると応答が遅くなり，小さくするとCPU負荷が高まる可能性がある． | 16000 |
+| channels | 音声がモノラル（1）かステレオ（2）かを示す． 音声認識には通常モノラル（1）が推奨される．2にするとデータ量が増え，モデルが対応していない場合は認識性能が低下することがある． | 1 |
+| use_feedback | フィードバックを有効にするかどうか | False |
+| use_prompt | プロンプトを用いるかどうか | False |
+
+モデルを変更する場合は[install.py](install.py)でダウンロードし，[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)の**model**の項目を使用するモデルに書き換えてください．
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
+ 
+## プロンプト
+[whisper_prompt.yaml](prompt/whisper_prompt.yaml)でモデルに与える「プロンプト」や文脈を指定します。
 
+これにより、特定の単語や固有名詞の認識精度を向上させることができます。
+
+ <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- マイルストーン -->
 ## マイルストーン
@@ -121,7 +142,7 @@ roslaunch speech_recognition_whisper speech_recognition_whisper.launch
 <!-- 参考文献 -->
 ## 参考文献
 
-* [ROS Noetic](http://wiki.ros.org/noetic)
+- [whisper](https://github.com/openai/whisper)
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
