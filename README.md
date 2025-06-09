@@ -73,7 +73,7 @@
    ```
 2. 本レポジトリをcloneします．
    ```sh
-   git clone -b feature/humble-devel https://github.com/TeamSOBITS/speech_recognition_whisper.git
+   git clone -b humble-devel https://github.com/TeamSOBITS/speech_recognition_whisper.git
    ```
 3. レポジトリの中へ移動します．
    ```sh
