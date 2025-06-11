@@ -6,9 +6,9 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-<!-- [![MIT License][license-shield]][license-url] -->
+[![License][license-shield]][license-url]
 
-# speech_recognition_whisper
+# Speech Recognition Whisper
 
 <!-- 目次 -->
 <details>
@@ -18,13 +18,15 @@
       <a href="#概要">概要</a>
     </li>
     <li>
-      <a href="#セットアップ">セットアップ</a>
+      <a href="#環境構築">環境構築</a>
       <ul>
         <li><a href="#環境条件">環境条件</a></li>
         <li><a href="#インストール方法">インストール方法</a></li>
       </ul>
     </li>
     <li><a href="#実行・操作方法">実行・操作方法</a></li>
+    <li><a href="#パラメータ">パラメータ</a></li>
+    <li><a href="#プロンプト">プロンプト</a></li>
     <li><a href="#マイルストーン">マイルストーン</a></li>
     <li><a href="#参考文献">参考文献</a></li>
   </ol>
@@ -48,8 +50,8 @@
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
-<!-- セットアップ -->
-## セットアップ
+<!-- 環境構築 -->
+## 環境構築
 
 ここで，本レポジトリのセットアップ方法について説明します．
 
@@ -108,7 +110,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
-### パラメータ
+## パラメータ
 [speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)では以下のパラメータを指定できます．
 
 | パラメータ | 説明 | デフォルト値 |
@@ -138,6 +140,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 
 現時点のバッグや新規機能の依頼を確認するために[Issueページ](issues-url) をご覧ください．
 
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- 参考文献 -->
 ## 参考文献
@@ -156,6 +159,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 [issues-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/issues
 [license-shield]: https://img.shields.io/github/license/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
 [license-url]: LICENSE
+
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
