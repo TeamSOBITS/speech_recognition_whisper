@@ -1,6 +1,6 @@
 <a name="readme-top"></a>
 
-[JP](README.md) | [EN](README_en.md)
+[JA](README.md) | [EN](README.en.md)
 
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
@@ -24,7 +24,7 @@
         <li><a href="#インストール方法">インストール方法</a></li>
       </ul>
     </li>
-    <li><a href="#実行・操作方法">実行・操作方法</a></li>
+    <li><a href="#実行操作方法">実行・操作方法</a></li>
     <li><a href="#パラメータ">パラメータ</a></li>
     <li><a href="#プロンプト">プロンプト</a></li>
     <li><a href="#マイルストーン">マイルストーン</a></li>
@@ -96,8 +96,8 @@
    source ~/colcon_ws/install/setup.sh
    ```
 
-<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- 実行・操作方法 -->
 ## 実行・操作方法
@@ -145,7 +145,9 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 <!-- 参考文献 -->
 ## 参考文献
 
-- [whisper](https://github.com/openai/whisper)
+* [whisper](https://github.com/openai/whisper)
+
+<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
@@ -159,11 +161,3 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 [issues-url]: https://github.com/TeamSOBITS/speech_recognition_whisper/issues
 [license-shield]: https://img.shields.io/github/license/TeamSOBITS/speech_recognition_whisper.svg?style=for-the-badge
 [license-url]: LICENSE
-
-
-<p align="right">(<a href="#readme-top">上に戻る</a>)</p>
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-<!-- []:  -->
