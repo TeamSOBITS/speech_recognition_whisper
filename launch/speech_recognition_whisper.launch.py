@@ -9,7 +9,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     use_feedback_arg = DeclareLaunchArgument(
         "use_feedback",
-        default_value="True",
+        default_value="False",
         description="Enable feedback (WIP Transcriber)"
     )
     use_feedback = LaunchConfiguration("use_feedback")
@@ -19,7 +19,7 @@ def generate_launch_description():
         "language": "en",
         "task": "transcribe",
         "use_feedback": use_feedback,
-        "use_prompt": True,
+        "use_prompt": False,
         "replace_prompt_whisper": [""],
     }
 
