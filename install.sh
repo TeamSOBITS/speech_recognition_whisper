@@ -6,31 +6,32 @@ echo "╔══╣ Install: Speech Recognition Whisper (STARTING) ╠══╗"
 # Keep the current directory
 DIR=$(pwd)
 
-sudo apt-get update
-sudo apt-get install -y \
-    ffmpeg \
-    python3-pyaudio
+sudo apt update -y
 
+sudo apt install pulseaudio-utils -y
+
+yes | sudo apt install -y ros-humble-vision-msgs
+echo "System dependencies installed."
+
+echo "--- Installing Python packages via pip3 ---"
 python3 -m pip install -U pip
-python3 -m pip install \
-    playsound
-# python3 -m pip install whisper
 python3 -m pip install git+https://github.com/openai/whisper.git 
-
 
 cd $DIR
 python3 install.py
 
 # Install "sobits_msgs"
 cd ..
-git clone https://github.com/TeamSOBITS/sobits_msgs.git
-
-# Install "alsamixer"
-# sudo apt-get remove --purge alsa-base pulseaudio
-# sudo apt-get install alsa-base pulseaudio
-# sudo alsa force-reload
+SOBITS_MSGS_REPO="sobits_msgs"
+# Check if the repository already exists
+if [ ! -d "$SOBITS_MSGS_REPO" ]; then
+    echo "Cloning $SOBITS_MSGS_REPO repository..."
+    git clone -b humble-devel https://github.com/TeamSOBITS/sobits_msgs.git
+    echo "$SOBITS_MSGS_REPO cloned successfully."
+else
+    echo "$SOBITS_MSGS_REPO repository already exists. Skipping clone."
+fi
 
 cd $DIR
-
 
 echo "╚══╣ Install: Speech Recognition Whisper (FINISHED) ╠══╝"
