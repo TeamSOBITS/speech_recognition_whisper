@@ -1,22 +1,21 @@
+import os
+import re
+import glob
+import time
+import whisper
+import threading
+import subprocess
+import asyncio
+import wave
+
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
-import json
-from std_msgs.msg import String
 from sobits_interfaces.action import SpeechRecognition
 from ament_index_python.packages import get_package_share_directory
-
-import whisper
-import subprocess
-import re
-import os
-import threading
-import time
-import glob
-import asyncio
 
 class WhisperServer(Node):
     SOUND_FILES_PATH = os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3')
@@ -25,7 +24,6 @@ class WhisperServer(Node):
 
     def __init__(self):
         super().__init__('whisper_server')
-
         share_dir = get_package_share_directory('speech_recognition_whisper')
         self.sound_file_directory = os.path.join(os.path.abspath(os.path.join(share_dir, '..', '..', '..', '..')),
                                                  'src', 'speech_recognition_whisper', 'sound_file')
@@ -68,13 +66,22 @@ class WhisperServer(Node):
         self.declare_parameter('replace_prompt_whisper', [""])
         self.declare_parameter('task', 'transcribe')
         self.declare_parameter('use_feedback', False)
-        self.declare_parameter('use_prompt', True)
+        self.declare_parameter('use_prompt', False)
 
         self.language = self.get_parameter('language').get_parameter_value().string_value
         self.prompt = self.get_parameter('replace_prompt_whisper').get_parameter_value().string_array_value
         self.task = self.get_parameter('task').get_parameter_value().string_value
         self.use_feedback_enabled = self.get_parameter('use_feedback').get_parameter_value().bool_value
         self.use_prompt = self.get_parameter('use_prompt').get_parameter_value().bool_value
+
+        self.model_wip = None
+        if self.use_feedback_enabled:
+            try:
+                self.model_wip = whisper.load_model("small")
+                self.get_logger().info("WIP feedback model loaded.")
+            except Exception as e:
+                self.get_logger().error(f"Failed to load WIP feedback model: {e}")
+                self.model_wip = None
 
         self.get_logger().info(f"use_feedback: {self.use_feedback_enabled}")
 
@@ -86,19 +93,13 @@ class WhisperServer(Node):
             cancel_callback=self.cancel_callback,
         )
 
-        self.wip_subscriber = self.create_subscription(
-            String,
-            '/speech_recognition/wip_result',
-            self.wip_callback,
-            10
-        )
-
-        self.wip_feedback_control_publisher = self.create_publisher(String, '/speech_recognition/wip_feedback', 10)
-
         self.current_goal_handle = None
         self.async_loop = asyncio.new_event_loop()
         self.loop_thread = threading.Thread(target=self._start_event_loop, daemon=True)
         self.loop_thread.start()
+
+        self.wip_thread = None
+        self.wip_stop_event = None
 
         YELLOW = '\033[93m'
         ENDC = '\033[0m'
@@ -110,23 +111,32 @@ class WhisperServer(Node):
         self.async_loop.run_forever()
 
     def goal_callback(self, goal_request):
-        self.get_logger().info('Received goal request')
+        self.get_logger().info('Goal received')
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle):
-        self.get_logger().info('Received cancel request')
+        self.get_logger().info('Cancel received')
+        if self.wip_stop_event:
+            self.wip_stop_event.set()
         return CancelResponse.ACCEPT
 
-    def wip_callback(self, msg):
-        if self.use_feedback_enabled and self.current_goal_handle and self.current_goal_handle.is_active:
-            feedback_msg = SpeechRecognition.Feedback()
-            feedback_msg.addition_text = msg.data
-            self.current_goal_handle.publish_feedback(feedback_msg)
-            self.get_logger().info(f"Published WIP feedback: '{msg.data}'")
-
     def speech_to_text(self, goal_handle):
+        self.wip_stop_event = threading.Event()
+
+        if self.use_feedback_enabled and self.model_wip is not None:
+            self.wip_thread = threading.Thread(target=self._wip_feedback_worker,
+                                               args=(self.wip_stop_event, goal_handle), daemon=True)
+            self.wip_thread.start()
+        else:
+            self.wip_thread = None
+
         future = asyncio.run_coroutine_threadsafe(self._speech_to_text_async(goal_handle), self.async_loop)
-        return future.result()
+        response = future.result()
+
+        self.wip_stop_event.set()
+        if self.wip_thread:
+            self.wip_thread.join()
+        return response
 
     async def _speech_to_text_async(self, goal_handle):
         response = SpeechRecognition.Result()
@@ -142,9 +152,8 @@ class WhisperServer(Node):
         duration = goal_handle.request.timeout_sec
         feedback_rate = goal_handle.request.feedback_rate
         self.get_logger().info(f"Recording duration: {duration}s, Feedback rate: {feedback_rate} Hz")
-        self._cleanup_files()
 
-        wip_segment_duration = 1.0 / feedback_rate if feedback_rate > 0 else 0.5
+        self._cleanup_files()
 
         fifo_wip = os.path.join(self.sound_file_directory, "audio_fifo_wip")
         fifo_final = os.path.join(self.sound_file_directory, "audio_fifo_final")
@@ -172,25 +181,24 @@ class WhisperServer(Node):
 
             self.ffmpeg_wip_proc = subprocess.Popen([
                 'ffmpeg',
+                '-loglevel', 'quiet',
                 '-f', self.raw_audio_format,
                 '-ar', str(self.raw_audio_rate),
                 '-ac', str(self.raw_audio_channels),
                 '-i', fifo_wip,
-                '-f', 'segment',
-                '-segment_time', str(wip_segment_duration),
-                '-segment_format', 'wav',
-                '-reset_timestamps', '1',
-                '-map', '0:a',
                 '-acodec', 'pcm_s16le',
                 '-ar', str(self.whisper_wav_rate),
                 '-ac', str(self.whisper_wav_channels),
+                '-f', 'segment',
+                '-segment_time', '2',
+                '-reset_timestamps', '1',
                 '-y',
                 os.path.join(self.sound_file_directory, "temp_wip_output_%03d.wav"),
-                '-loglevel', 'error'
             ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
             self.ffmpeg_final_proc = subprocess.Popen([
                 'ffmpeg',
+                '-loglevel', 'quiet',
                 '-f', self.raw_audio_format,
                 '-ar', str(self.raw_audio_rate),
                 '-ac', str(self.raw_audio_channels),
@@ -204,14 +212,6 @@ class WhisperServer(Node):
                 '-loglevel', 'error'
             ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
-            if self.use_feedback_enabled:
-                msg_dict = {
-                    "active": True,
-                    "feedback_rate": feedback_rate  
-                }
-                msg = String()
-                msg.data = json.dumps(msg_dict)
-                self.wip_feedback_control_publisher.publish(msg)
             start_time = time.time()
             while (time.time() - start_time) < (duration + 5):
                 if goal_handle.is_cancel_requested:
@@ -223,6 +223,7 @@ class WhisperServer(Node):
                 raise subprocess.TimeoutExpired(self.ffmpeg_final_proc.args, duration + 5)
 
             goal_handle.succeed()
+
         except rclpy.action.CancelGoalException:
             goal_handle.canceled()
             response.result_text = "Action cancelled by client."
@@ -246,14 +247,6 @@ class WhisperServer(Node):
             self._terminate_processes()
             self._remove_fifo(fifo_wip)
             self._remove_fifo(fifo_final)
-            if self.use_feedback_enabled:
-                msg_dict = {
-                    "active": False,
-                    "feedback_rate": feedback_rate  
-                }
-                msg = String()
-                msg.data = json.dumps(msg_dict)
-                self.wip_feedback_control_publisher.publish(msg)
             self.current_goal_handle = None
 
         if not goal_handle.request.silent_mode:
@@ -273,13 +266,14 @@ class WhisperServer(Node):
                 task=self.task,
                 initial_prompt=prompt_text if prompt_text else None
             )
-            text = result.get("text", "") if result else ""
+            text = result.get("text", "")
             if not text:
                 self.get_logger().warn("No speech recognized.")
                 response.result_text = "No speech recognized."
             else:
-                response.result_text = text
-                self.get_logger().info(f"Recognition result: '{text}'")
+                safe_text = text.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+                response.result_text = safe_text
+                self.get_logger().info(f"Final recognition result: {safe_text}")
         except Exception as e:
             self.get_logger().error(f"Transcription error: {e}")
             goal_handle.abort()
@@ -287,6 +281,61 @@ class WhisperServer(Node):
             return response
 
         return response
+
+    def _wip_feedback_worker(self, stop_event, goal_handle):
+        if not self.model_wip:
+            self.get_logger().info("WIP feedback model not loaded or feedback disabled, skipping WIP thread.")
+            return
+
+        self.get_logger().info("WIP feedback thread started.")
+        seen_files = set()
+
+        while not stop_event.is_set():
+            if not goal_handle.is_active:
+                time.sleep(0.5)
+                continue
+
+            wip_files = sorted(glob.glob(os.path.join(self.sound_file_directory, "temp_wip_output_*.wav")))
+            new_files = [f for f in wip_files if f not in seen_files]
+
+            for path in new_files:
+                if not self._can_open_wav(path):
+                    continue
+
+                seen_files.add(path)
+                try:
+                    prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
+                    result = self.model_wip.transcribe(
+                        path, 
+                        language=self.language,
+                        task=self.task,
+                        initial_prompt=prompt_text if prompt_text else None
+                        )            
+                    text = result.get("text", "")
+                    if text:
+                        feedback = SpeechRecognition.Feedback()
+                        feedback.addition_text = text
+                        goal_handle.publish_feedback(feedback)
+                        self.get_logger().info(f"WIP feedback published: '{text}'")
+                except Exception as e:
+                    self.get_logger().warn(f"WIP recognition error: {e}")
+            time.sleep(0.5)
+        self.get_logger().info("WIP feedback thread stopped.")
+
+    def _can_open_wav(self, path, retries=5, delay=0.2):
+        last_size = -1
+        for _ in range(retries):
+            if os.path.exists(path):
+                size = os.path.getsize(path)
+                if size > 0 and size == last_size:
+                    try:
+                        with wave.open(path, 'rb'):
+                            return True
+                    except Exception:
+                        pass
+                last_size = size
+            time.sleep(delay)
+        return False
 
     def _play_sound_with_ffplay(self, filename):
         sound_path = os.path.join(self.SOUND_FILES_PATH, filename)
@@ -387,23 +436,22 @@ class WhisperServer(Node):
 
     def _terminate_processes(self):
         for proc in [getattr(self, attr) for attr in ['parec_proc', 'tee_proc', 'ffmpeg_wip_proc', 'ffmpeg_final_proc'] if hasattr(self, attr)]:
-            if proc and proc.poll() is None:
-                self.get_logger().warn(f"Killing lingering process: {proc.args[0]}")
+            try:
+                proc.terminate()
+                proc.wait(timeout=3)
+            except Exception:
                 proc.kill()
-                proc.wait(timeout=5)
+                proc.wait(timeout=3)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = WhisperServer()
+    whisper_server = WhisperServer()
     executor = MultiThreadedExecutor()
-    executor.add_node(node)
+    executor.add_node(whisper_server)
     try:
         executor.spin()
-    except KeyboardInterrupt:
-        pass
     finally:
-        executor.shutdown()
-        node.destroy_node()
+        whisper_server.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':

@@ -27,7 +27,6 @@ setup(
     entry_points={
         'console_scripts': [
             "whisper_server = speech_recognition_whisper.whisper_server:main",
-            "wip_transcriber = speech_recognition_whisper.wip_transcriber:main",
         ],
     },
 )
