@@ -117,7 +117,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | パラメータ | 説明 | デフォルト値 |
 | --- | --- | --- |
 | model | [モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) | small |
-| launguage | [対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
+| language | [対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
 | task | 実行するタスクを指定します。"transcribe"（文字起こし）または"translate"（英語への翻訳）が選択できます。 | transcribe |
 | use_feedback | フィードバックを有効にするかどうか | False |
 | use_prompt | プロンプトを用いるかどうか | False |
