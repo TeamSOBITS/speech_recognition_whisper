@@ -101,12 +101,13 @@
 
 <!-- 実行・操作方法 -->
 ## 実行・操作方法
+1. Ubuntuの設定で，サウンドの入力デバイスを使用するマイクに設定します．
 
-1. Action Serverを起動します．
+2. Action Serverを起動します．
 ```sh
 ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 ```
-2. Action Clientを起動します．
+3. Action Clientを起動します．
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
@@ -118,9 +119,6 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | model | [モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) | small |
 | launguage | [対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
 | task | 実行するタスクを指定します。"transcribe"（文字起こし）または"translate"（英語への翻訳）が選択できます。 | transcribe |
-| sample_rate | 1秒あたりの音声データ変換回数．高いほど音質が向上し，拾える周波数範囲が広がる．高くするとデータ量と負荷が増え，低くすると音質が劣化する可能性がある． | 44100 |
-| chunk_size | 一度に処理する音声データの塊のサイズ．リアルタイム性と処理負荷のバランスを決定する．大きくすると応答が遅くなり，小さくするとCPU負荷が高まる可能性がある． | 16000 |
-| channels | 音声がモノラル（1）かステレオ（2）かを示す． 音声認識には通常モノラル（1）が推奨される．2にするとデータ量が増え，モデルが対応していない場合は認識性能が低下することがある． | 1 |
 | use_feedback | フィードバックを有効にするかどうか | False |
 | use_prompt | プロンプトを用いるかどうか | False |
 
