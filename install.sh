@@ -21,16 +21,16 @@ python3 -m pip install git+https://github.com/openai/whisper.git
 cd $DIR
 python3 install.py
 
-# Install "sobits_msgs"
+# Install "sobits_interfaces"
 cd ..
-SOBITS_MSGS_REPO="sobits_msgs"
+sobits_interfaces_REPO="sobits_interfaces"
 # Check if the repository already exists
-if [ ! -d "$SOBITS_MSGS_REPO" ]; then
-    echo "Cloning $SOBITS_MSGS_REPO repository..."
+if [ ! -d "$sobits_interfaces_REPO" ]; then
+    echo "Cloning $sobits_interfaces_REPO repository..."
     git clone -b humble-devel https://github.com/TeamSOBITS/sobits_interfaces.git
-    echo "$SOBITS_MSGS_REPO cloned successfully."
+    echo "$sobits_interfaces_REPO cloned successfully."
 else
-    echo "$SOBITS_MSGS_REPO repository already exists. Skipping clone."
+    echo "$sobits_interfaces_REPO repository already exists. Skipping clone."
 fi
 
 cd $DIR
