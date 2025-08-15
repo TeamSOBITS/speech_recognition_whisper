@@ -9,6 +9,7 @@ DIR=$(pwd)
 sudo apt update -y
 
 sudo apt install pulseaudio-utils -y
+sudo apt install ffmpeg
 
 yes | sudo apt install -y ros-humble-vision-msgs
 echo "System dependencies installed."
