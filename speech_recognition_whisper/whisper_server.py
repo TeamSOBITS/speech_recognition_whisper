@@ -17,6 +17,8 @@ from rclpy.executors import MultiThreadedExecutor
 from sobits_interfaces.action import SpeechRecognition
 from ament_index_python.packages import get_package_share_directory
 
+from .vad import VadProcessor
+
 class WhisperServer(Node):
     SOUND_FILES_PATH = os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3')
     PULSEAUDIO_SOURCE_NAME_PATTERN = re.compile(r'^\s*(?:Name|名前):\s*(.+)\s*$')
@@ -47,9 +49,9 @@ class WhisperServer(Node):
         self.raw_audio_format = 's16le'
         self.raw_audio_rate = self.default_sample_rate
         self.raw_audio_channels = self.default_channels
-
         self.whisper_wav_rate = 16000
         self.whisper_wav_channels = 1
+        self.feedback_rate = 1.5
 
         self.declare_parameter('model_name', 'small')
         self.whisper_model_name = self.get_parameter('model_name').get_parameter_value().string_value
@@ -65,24 +67,25 @@ class WhisperServer(Node):
         self.declare_parameter('language', 'en')
         self.declare_parameter('replace_prompt_whisper', [""])
         self.declare_parameter('task', 'transcribe')
-        self.declare_parameter('use_feedback', False)
+        self.declare_parameter('use_feedback', True)
         self.declare_parameter('use_prompt', False)
+        self.declare_parameter('min_wipe_duration', 0.2)
 
-        self.language = self.get_parameter('language').get_parameter_value().string_value
-        self.prompt = self.get_parameter('replace_prompt_whisper').get_parameter_value().string_array_value
-        self.task = self.get_parameter('task').get_parameter_value().string_value
         self.use_feedback_enabled = self.get_parameter('use_feedback').get_parameter_value().bool_value
-        self.use_prompt = self.get_parameter('use_prompt').get_parameter_value().bool_value
+        self.min_wipe_duration = self.get_parameter('min_wipe_duration').get_parameter_value().double_value
 
         self.model_wip = None
+        self.vad_processor = None
         if self.use_feedback_enabled:
             try:
-                self.model_wip = whisper.load_model("small")
+                self.model_wip = whisper.load_model(self.whisper_model_name)
                 self.get_logger().info("WIP feedback model loaded.")
+                self.vad_processor = VadProcessor(self)
+                self.get_logger().info("VAD model for WIP feedback loaded.")
             except Exception as e:
-                self.get_logger().error(f"Failed to load WIP feedback model: {e}")
+                self.get_logger().error(f"Failed to load WIP feedback model or VAD model: {e}")
                 self.model_wip = None
-
+                self.vad_processor = None
         self.get_logger().info(f"use_feedback: {self.use_feedback_enabled}")
 
         self.action_server = ActionServer(
@@ -121,6 +124,11 @@ class WhisperServer(Node):
         return CancelResponse.ACCEPT
 
     def speech_to_text(self, goal_handle):
+        self.language = self.get_parameter('language').get_parameter_value().string_value
+        self.prompt = self.get_parameter('replace_prompt_whisper').get_parameter_value().string_array_value
+        self.task = self.get_parameter('task').get_parameter_value().string_value
+        self.use_prompt = self.get_parameter('use_prompt').get_parameter_value().bool_value
+
         self.wip_stop_event = threading.Event()
 
         if self.use_feedback_enabled and self.model_wip is not None:
@@ -150,8 +158,8 @@ class WhisperServer(Node):
             return response
 
         duration = goal_handle.request.timeout_sec
-        feedback_rate = goal_handle.request.feedback_rate
-        self.get_logger().info(f"Recording duration: {duration}s, Feedback rate: {feedback_rate} Hz")
+        self.feedback_rate = goal_handle.request.feedback_rate
+        self.get_logger().info(f"Recording duration: {duration}s, Feedback rate: {self.feedback_rate} Hz")
 
         self._cleanup_files()
 
@@ -179,23 +187,6 @@ class WhisperServer(Node):
 
             self.parec_proc.stdout.close()
 
-            self.ffmpeg_wip_proc = subprocess.Popen([
-                'ffmpeg',
-                '-loglevel', 'quiet',
-                '-f', self.raw_audio_format,
-                '-ar', str(self.raw_audio_rate),
-                '-ac', str(self.raw_audio_channels),
-                '-i', fifo_wip,
-                '-acodec', 'pcm_s16le',
-                '-ar', str(self.whisper_wav_rate),
-                '-ac', str(self.whisper_wav_channels),
-                '-f', 'segment',
-                '-segment_time', '2',
-                '-reset_timestamps', '1',
-                '-y',
-                os.path.join(self.sound_file_directory, "temp_wip_output_%03d.wav"),
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-
             self.ffmpeg_final_proc = subprocess.Popen([
                 'ffmpeg',
                 '-loglevel', 'quiet',
@@ -215,28 +206,25 @@ class WhisperServer(Node):
             start_time = time.time()
             while (time.time() - start_time) < (duration + 5):
                 if goal_handle.is_cancel_requested:
-                    raise rclpy.action.CancelGoalException()
+                    self.get_logger().info("Cancel requested. Aborting recording.")
+                    goal_handle.canceled()
+                    response.result_text = "Action cancelled by client."
+                    return response
                 if self.ffmpeg_final_proc.poll() is not None:
                     break
                 await asyncio.sleep(0.1)
             else:
-                raise subprocess.TimeoutExpired(self.ffmpeg_final_proc.args, duration + 5)
+                self.get_logger().error("Recording timed out.")
+                goal_handle.abort()
+                response.result_text = "Recording timed out."
+                return response
 
             goal_handle.succeed()
 
-        except rclpy.action.CancelGoalException:
-            goal_handle.canceled()
-            response.result_text = "Action cancelled by client."
-            return response
         except FileNotFoundError as e:
             self.get_logger().error(f"Command not found: {e.filename}")
             goal_handle.abort()
             response.result_text = f"System Error: Command not found ({e.filename})"
-            return response
-        except subprocess.TimeoutExpired:
-            self.get_logger().error("Recording timed out.")
-            goal_handle.abort()
-            response.result_text = "Recording timed out."
             return response
         except Exception as e:
             self.get_logger().error(f"Error during recording or processing: {e}")
@@ -281,62 +269,115 @@ class WhisperServer(Node):
             return response
 
         return response
+    
+    def _save_buffer_to_wav(self, frames, file_path, sample_rate, channels):
+        if not frames:
+            return False
+        
+        with wave.open(file_path, 'wb') as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            wf.writeframes(b"".join(frames))
+        return True
 
     def _wip_feedback_worker(self, stop_event, goal_handle):
-        if not self.model_wip:
+        if not self.model_wip or not self.vad_processor:
             self.get_logger().info("WIP feedback model not loaded or feedback disabled, skipping WIP thread.")
             return
 
         self.get_logger().info("WIP feedback thread started.")
-        seen_files = set()
+        
+        fifo_wip = os.path.join(self.sound_file_directory, "audio_fifo_wip")
 
-        while not stop_event.is_set():
-            if not goal_handle.is_active:
-                time.sleep(0.5)
-                continue
+        self.get_logger().info(f"Waiting for FIFO file to be created: {fifo_wip}")
+        for _ in range(200):
+            if os.path.exists(fifo_wip):
+                break
+            time.sleep(0.05)
+        else:
+            self.get_logger().error(f"Timed out waiting for FIFO file: {fifo_wip}")
+            stop_event.set()
+            return
 
-            wip_files = sorted(glob.glob(os.path.join(self.sound_file_directory, "temp_wip_output_*.wav")))
-            new_files = [f for f in wip_files if f not in seen_files]
+        hop_size, vad_chunk_size_bytes = self.vad_processor.get_hop_size()
+        
+        audio_buffer = []
+        is_speaking = False
+        
+        ffmpeg_resample_proc = None
+        try:
+            ffmpeg_resample_proc = subprocess.Popen(
+                [
+                    'ffmpeg',
+                    '-f', self.raw_audio_format,
+                    '-ar', str(self.raw_audio_rate),
+                    '-ac', str(self.raw_audio_channels),
+                    '-i', fifo_wip,
+                    '-f', 's16le',
+                    '-acodec', 'pcm_s16le',
+                    '-ar', str(self.whisper_wav_rate),
+                    '-ac', '1',
+                    '-'
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL
+            )
 
-            for path in new_files:
-                if not self._can_open_wav(path):
+            self.get_logger().info("Starting to read from WIP FIFO for VAD.")
+            while not stop_event.is_set():
+                resampled_data = ffmpeg_resample_proc.stdout.read(vad_chunk_size_bytes)
+                if not resampled_data:
+                    time.sleep(0.01)
                     continue
 
-                seen_files.add(path)
-                try:
-                    prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
-                    result = self.model_wip.transcribe(
-                        path, 
-                        language=self.language,
-                        task=self.task,
-                        initial_prompt=prompt_text if prompt_text else None
-                        )            
-                    text = result.get("text", "")
-                    if text:
-                        feedback = SpeechRecognition.Feedback()
-                        feedback.addition_text = text
-                        goal_handle.publish_feedback(feedback)
-                        self.get_logger().info(f"WIP feedback published: '{text}'")
-                except Exception as e:
-                    self.get_logger().warn(f"WIP recognition error: {e}")
-            time.sleep(0.5)
+                is_voice = self.vad_processor.vad_processor(resampled_data, self.feedback_rate)
+
+                if is_voice:
+                    if not is_speaking:
+                        is_speaking = True
+                        audio_buffer = []
+                    audio_buffer.append(resampled_data)
+                else:
+                    if is_speaking:
+                        is_speaking = False
+                        
+                        duration_sec = len(audio_buffer) * hop_size / self.whisper_wav_rate
+                        if duration_sec < self.min_wipe_duration:
+                            audio_buffer = []
+                            continue
+
+                        temp_file = os.path.join(self.sound_file_directory, f"wip_session_{int(time.time())}.wav")
+                        if self._save_buffer_to_wav(audio_buffer, temp_file, self.whisper_wav_rate, self.whisper_wav_channels):
+                            try:
+                                prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
+                                result = self.model_wip.transcribe(
+                                    temp_file,
+                                    language=self.language,
+                                    task=self.task,
+                                    initial_prompt=prompt_text if prompt_text else None
+                                )
+                                text = result.get("text", "")
+                                if text and goal_handle.is_active:
+                                    feedback = SpeechRecognition.Feedback()
+                                    feedback.addition_text = text
+                                    goal_handle.publish_feedback(feedback)
+                                    self.get_logger().info(f"WIP feedback published: '{text}'")
+                                
+                            except Exception as e:
+                                self.get_logger().warn(f"WIP recognition error: {e}")
+                            finally:
+                                audio_buffer = []
+        except Exception as e:
+            self.get_logger().error(f"Fatal error in WIP feedback worker: {e}")
+            stop_event.set()
+        finally:
+            if ffmpeg_resample_proc:
+                ffmpeg_resample_proc.terminate()
+                ffmpeg_resample_proc.wait()
+            
         self.get_logger().info("WIP feedback thread stopped.")
-
-    def _can_open_wav(self, path, retries=5, delay=0.2):
-        last_size = -1
-        for _ in range(retries):
-            if os.path.exists(path):
-                size = os.path.getsize(path)
-                if size > 0 and size == last_size:
-                    try:
-                        with wave.open(path, 'rb'):
-                            return True
-                    except Exception:
-                        pass
-                last_size = size
-            time.sleep(delay)
-        return False
-
+        
     def _play_sound_with_ffplay(self, filename):
         sound_path = os.path.join(self.SOUND_FILES_PATH, filename)
         if not os.path.exists(sound_path):
@@ -403,7 +444,7 @@ class WhisperServer(Node):
         return None, None
 
     def _cleanup_files(self):
-        wip_files = glob.glob(os.path.join(self.sound_file_directory, "temp_wip_output_*.wav"))
+        wip_files = glob.glob(os.path.join(self.sound_file_directory, "wip_session_*.wav"))
         for f in wip_files:
             try:
                 os.remove(f)
@@ -435,7 +476,7 @@ class WhisperServer(Node):
                 self.get_logger().warn(f"Failed to remove FIFO {path}: {e}")
 
     def _terminate_processes(self):
-        for proc in [getattr(self, attr) for attr in ['parec_proc', 'tee_proc', 'ffmpeg_wip_proc', 'ffmpeg_final_proc'] if hasattr(self, attr)]:
+        for proc in [getattr(self, attr) for attr in ['parec_proc', 'tee_proc', 'ffmpeg_final_proc'] if hasattr(self, attr)]:
             try:
                 proc.terminate()
                 proc.wait(timeout=3)

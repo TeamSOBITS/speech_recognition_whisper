@@ -1,7 +1,5 @@
 #!/bin/bash
-
 echo "╔══╣ Install: Speech Recognition Whisper (STARTING) ╠══╗"
-
 
 # Keep the current directory
 DIR=$(pwd)
@@ -17,6 +15,12 @@ echo "System dependencies installed."
 echo "--- Installing Python packages via pip3 ---"
 python3 -m pip install -U pip
 python3 -m pip install git+https://github.com/openai/whisper.git 
+
+echo "--- Installing VAD ---"
+
+pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git
+
+sudo apt install libc++1 -y
 
 cd $DIR
 python3 install.py

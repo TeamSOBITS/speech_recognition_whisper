@@ -114,27 +114,39 @@ First, ensure you have the following environment set up before proceeding to the
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Parameters
-
-The following parameters can be specified in　[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)
+The following parameters can be set in [speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py).
 
 | Parameter | Description | Default Value |
-| --- | --- | --- |
-| model | [List of Models](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) | small |
-| language | [List of Supported Languages](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
-| task | Specifies the task to execute. You can choose "transcribe" (speech-to-text) or "translate" (translate to English). | transcribe |
-| use\_feedback | Whether to enable feedback | False |
-| use\_prompt | Whether to use a prompt | False |
+| :--- | :--- | :--- |
+| **`model`** | The Whisper model to use. *1 | `small` |
+| **`language`** | The language for speech recognition. See the [list of supported languages](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py). | `en` |
+| **`task`** | The task to perform. You can choose `"transcribe"` for transcription or `"translate"` for translation into English. | `transcribe` |
+| **`use_prompt`** | Whether to use a prompt to guide the model's predictions. | `False` |
+| **`use_feedback`** | Whether to enable work-in-progress (WIP) speech recognition feedback. | `True` |
 
-To change the model, download it using [install.py](install.py)　and then rewrite the **model** item in [speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py) to the model you wish to use.
+*1 Models are available in increasing order of size: `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, and `large-v3-turbo`. For more details, refer to the [model list](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013).
+
+- To change the model, first download it using [install.py](install.py), then change the `model` parameter in [speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py) to the desired model name.
+
+
+The following parameters are for feedback and are only enabled when `use_feedback` is set to `True`. Changing these values does not affect the final recognition result.
+
+| Parameter | Description | Default Value |
+| :--- | :--- | :--- |
+| **`vad_name`** | The Voice Activity Detection (VAD) method used for feedback. Using VAD improves the accuracy of feedback recognition. Selecting `None` disables VAD, and speech recognition will be performed at the interval specified by the Action Client's Feedback Rate. | `ten_vad` |
+| **`hop_size`** | The size of the audio data chunk (fragment) processed by the VAD model. You can choose between `160` and `256`. A smaller value increases responsiveness but also raises CPU load. | `256` |
+| **`threshold`** | The probability threshold for the VAD model to detect a voice. A higher value reduces false positives but might cause faint or quiet voices to be ignored. | `0.5` |
+| **`min_wipe_duration`** | The minimum length of a voice segment needed to trigger speech recognition. If the VAD recognizes a voice segment that is shorter than this value in seconds, it's ignored as noise, and the speech recognition process isn't started. | `0.2` |
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 ## Prompt
 
-You can specify the "prompt" or context to be given to the model in [whisper_prompt.yaml](prompt/whisper_prompt.yaml).
+In [whisper_prompt.yaml](prompt/whisper_prompt.yaml), you can specify the "prompt" or context to provide to the model.
 
-This can improve the accuracy of recognizing specific words or proper nouns.
+By pre-training the model with specific words, phrases, or proper nouns through a prompt, you can guide its predictions and improve recognition accuracy.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -147,7 +159,8 @@ See the [open issues][issues-url] for a full list of proposed features (and know
 <!-- 参考文献 -->
 ## Acknowledgements
 
-* [whisper](https://github.com/openai/whisper)
+* [Whisper](https://github.com/openai/whisper)
+* [TEN VAD](https://github.com/TEN-framework/ten-vad)
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->

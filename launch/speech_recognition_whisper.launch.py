@@ -4,12 +4,15 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 extra_params = {
-    "model_name": "small",
+    "model_name": "small",   # tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo
     "language": "en",
     "task": "transcribe",
     "use_prompt": False,
-    "replace_prompt_whisper": [""],
-    "use_feedback": False,
+    "use_feedback": True,
+    "vad_name": "ten_vad",
+    "hop_size": 256,
+    "threshold": 0.5,
+    "min_wipe_duration": 0.2,
 }
 
 whisper_prompt = os.path.join(

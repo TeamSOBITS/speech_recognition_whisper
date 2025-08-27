@@ -18,7 +18,7 @@
       <a href="#概要">概要</a>
     </li>
     <li>
-      <a href="#環境構築">環境構築</a>
+      <a href="#セットアップ">セットアップ</a>
       <ul>
         <li><a href="#環境条件">環境条件</a></li>
         <li><a href="#インストール方法">インストール方法</a></li>
@@ -36,11 +36,9 @@
 <!-- レポジトリの概要 -->
 ## 概要
 
-<!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
+本リポジトリは，OpenAIの[whisper](https://github.com/openai/whisper)の自動音声認識（ASR）機能をROS2のアクション通信に対応させたものです．
 
-ローカルで動作する，音声認識パッケージです．\
-他の音声認識パッケージと同じように，Action通信で使えます．\
-また，性質上GPUのPCを推奨します．
+ローカル環境で動作します．
 
 > [!NOTE]
 > CPUでも動作しますが，返答に若干ラグがあります．
@@ -50,8 +48,8 @@
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
-<!-- 環境構築 -->
-## 環境構築
+<!-- セットアップ -->
+## セットアップ
 
 ここで，本レポジトリのセットアップ方法について説明します．
 
@@ -116,20 +114,34 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 
 | パラメータ | 説明 | デフォルト値 |
 | --- | --- | --- |
-| model | [モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) | small |
-| language | [対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
-| task | 実行するタスクを指定します。"transcribe"（文字起こし）または"translate"（英語への翻訳）が選択できます。 | transcribe |
-| use_feedback | フィードバックを有効にするかどうか | False |
+| model | 実行する Whisper モデル *1 | small |
+| language | 音声認識を行う言語．[対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
+| task | 実行するタスク．"transcribe"（文字起こし）または"translate"（英語への翻訳）を選択可能． | transcribe |
 | use_prompt | プロンプトを用いるかどうか | False |
+| use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 
-モデルを変更する場合は[install.py](install.py)でダウンロードし，[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)の**model**の項目を使用するモデルに書き換えてください．
+*1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．詳細は[モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013)を参照してください．
+
+- モデルを変更する場合は[install.py](install.py)でダウンロードし，[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)の**model**の項目を使用するモデルに書き換えてください．
+
+
+以下はFeedbackに関するパラメータです．\
+``use_feedback``が``True``のときのみ有効です．\
+以下の値を変更しても最終認識結果には影響しません．
+
+| パラメータ | 説明 | デフォルト値 |
+| - | - | - |
+| vad_name | フィードバックの際に使用する音声アクティビティ検出(VAD)の手法．VADの使用によりフィードバックの認識精度が向上する．``None``を選択するとVADを使用せずAction Clientで指定したFeedback Rateの秒数ごとに音声認識を行う． | ten_vad |
+| hop_size | VADモデルが音声データを処理するチャンク（断片）のサイズ．160 or 256を選択可能．値が小さいほど応答性が上がるが，CPU負荷が増える | 256 |
+| threshold | VADモデルが音声を検出するための確率のしきい値．値を高くすると誤検出が減るが，かすれた声や小さな声が無視される可能性がある | 0.5 |
+| min_wipe_duration | ノイズを無視し音声認識するために必要な声の最短の長さ．VADが発話と認識した区間がこの秒数より短い場合，ノイズとして無視され音声認識の処理を行わない．| 0.2 | 
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
  
 ## プロンプト
-[whisper_prompt.yaml](prompt/whisper_prompt.yaml)でモデルに与える「プロンプト」や文脈を指定します。
+[whisper_prompt.yaml](prompt/whisper_prompt.yaml)でモデルに与える「プロンプト」や文脈を指定します．
 
-これにより、特定の単語や固有名詞の認識精度を向上させることができます。
+プロンプトで特定の単語やフレーズ，固有名詞をモデルに事前に教えることで，モデルの予測を誘導し認識精度が向上します．
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
@@ -143,7 +155,8 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 <!-- 参考文献 -->
 ## 参考文献
 
-* [whisper](https://github.com/openai/whisper)
+* [Whisper](https://github.com/openai/whisper)
+* [TEN VAD](https://github.com/TEN-framework/ten-vad)
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
