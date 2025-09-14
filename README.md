@@ -36,7 +36,9 @@
 <!-- レポジトリの概要 -->
 ## 概要
 
-本リポジトリは，OpenAIの[whisper](https://github.com/openai/whisper)の自動音声認識（ASR）機能をROS2のアクション通信に対応させたものです．
+本リポジトリは，OpenAIの[whisper](https://github.com/openai/whisper)および
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper)の自動音声認識（ASR）機能を
+ROS2のアクション通信に対応させたものです．
 
 ローカル環境で動作します．
 
@@ -119,8 +121,12 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | task | 実行するタスク．"transcribe"（文字起こし）または"translate"（英語への翻訳）を選択可能． | transcribe |
 | use_prompt | プロンプトを用いるかどうか | False |
 | use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
+| backend | 使用するバックエンド: "whisper" または "faster-whisper" | whisper |
 
-*1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．詳細は[モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013)を参照してください．
+
+*1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．
+Faster-Whisperも同じモデルサイズに対応しますが，推論は高速かつ省メモリです．
+詳細は[モデル一覧](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013)を参照してください．
 
 - モデルを変更する場合は[install.py](install.py)でダウンロードし，[speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py)の**model**の項目を使用するモデルに書き換えてください．
 
@@ -156,6 +162,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 ## 参考文献
 
 * [Whisper](https://github.com/openai/whisper)
+* [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper)  
 * [TEN VAD](https://github.com/TEN-framework/ten-vad)
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
