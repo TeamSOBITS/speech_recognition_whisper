@@ -16,6 +16,10 @@ echo "--- Installing Python packages via pip3 ---"
 python3 -m pip install -U pip
 python3 -m pip install git+https://github.com/openai/whisper.git 
 
+echo "--- Installing Faster-Whisper ---"
+python3 -m pip install -U faster-whisper
+
+
 echo "--- Installing VAD ---"
 
 pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git
