@@ -54,13 +54,23 @@ class WhisperServer(Node):
         self.feedback_rate = 1.5
 
         self.declare_parameter('model_name', 'small')
+        self.declare_parameter('backend', 'whisper')
         self.whisper_model_name = self.get_parameter('model_name').get_parameter_value().string_value
+        self.backend = self.get_parameter('backend').get_parameter_value().string_value
 
         try:
-            self.model = whisper.load_model(self.whisper_model_name)
-            self.get_logger().info(f"Whisper model '{self.whisper_model_name}' loaded on {self.model.device}.")
+            if self.backend == "whisper":
+                import whisper
+                self.model = whisper.load_model(self.whisper_model_name)
+                self.get_logger().info(f"Whisper model '{self.whisper_model_name}' loaded on {self.model.device}.")
+            elif self.backend == "faster-whisper":
+                from faster_whisper import WhisperModel
+                self.model = WhisperModel(self.whisper_model_name, device="cuda", compute_type="float16")
+                self.get_logger().info(f"Faster-Whisper model '{self.whisper_model_name}' loaded.")
+            else:
+                raise ValueError(f"Unknown backend: {self.backend}")
         except Exception as e:
-            self.get_logger().fatal(f"Failed to load whisper model: {e}")
+            self.get_logger().fatal(f"Failed to load {self.backend} model: {e}")
             self.model = None
             return
 
@@ -78,8 +88,14 @@ class WhisperServer(Node):
         self.vad_processor = None
         if self.use_feedback_enabled:
             try:
-                self.model_wip = whisper.load_model(self.whisper_model_name)
-                self.get_logger().info("WIP feedback model loaded.")
+                if self.backend == "whisper":
+                    import whisper   
+                    self.model_wip = whisper.load_model(self.whisper_model_name)
+                    self.get_logger().info("WIP feedback model loaded.")
+                elif self.backend == "faster-whisper":
+                    from faster_whisper import WhisperModel
+                    self.model_wip = WhisperModel(self.whisper_model_name, device="cuda", compute_type="float16")
+                    self.get_logger().info("WIP feedback model loaded (faster-whisper).")
                 self.vad_processor = VadProcessor(self)
                 self.get_logger().info("VAD model for WIP feedback loaded.")
             except Exception as e:
@@ -248,13 +264,20 @@ class WhisperServer(Node):
 
         try:
             prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
-            result = self.model.transcribe(
-                self.wav_path,
-                language=self.language,
-                task=self.task,
-                initial_prompt=prompt_text if prompt_text else None
-            )
-            text = result.get("text", "")
+            if self.backend == "whisper":
+                result = self.model.transcribe(
+                    self.wav_path,
+                    language=self.language,
+                    task=self.task,
+                    initial_prompt=prompt_text if prompt_text else None
+                )
+                text = result.get("text", "")
+            elif self.backend == "faster-whisper":
+                segments, _ = self.model.transcribe(self.wav_path, language=self.language, task=self.task if self.task in ["transcribe", "translate"] else "transcribe", initial_prompt=prompt_text if prompt_text else None)
+                text = " ".join([seg.text for seg in segments]).strip()
+            else:
+                text = ""
+                
             if not text:
                 self.get_logger().warn("No speech recognized.")
                 response.result_text = "No speech recognized."
@@ -350,14 +373,24 @@ class WhisperServer(Node):
                         temp_file = os.path.join(self.sound_file_directory, f"wip_session_{int(time.time())}.wav")
                         if self._save_buffer_to_wav(audio_buffer, temp_file, self.whisper_wav_rate, self.whisper_wav_channels):
                             try:
-                                prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
-                                result = self.model_wip.transcribe(
-                                    temp_file,
-                                    language=self.language,
-                                    task=self.task,
-                                    initial_prompt=prompt_text if prompt_text else None
-                                )
-                                text = result.get("text", "")
+                                if self.backend == "whisper":
+                                    result = self.model_wip.transcribe(
+                                        temp_file,
+                                        language=self.language,
+                                        task=self.task,
+                                        initial_prompt=prompt_text if prompt_text else None
+                                    )
+                                    text = result.get("text", "")
+                                elif self.backend == "faster-whisper":
+                                    segments, _ = self.model_wip.transcribe(
+                                        temp_file,
+                                        language=self.language,
+                                        task=self.task if self.task in ["transcribe", "translate"] else "transcribe",
+                                        initial_prompt=prompt_text if prompt_text else None
+                                    )
+                                    text = " ".join([seg.text for seg in segments]).strip()
+                                else:
+                                    text = ""
                                 if text and goal_handle.is_active:
                                     feedback = SpeechRecognition.Feedback()
                                     feedback.addition_text = text
