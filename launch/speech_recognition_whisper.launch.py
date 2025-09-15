@@ -5,7 +5,8 @@ from ament_index_python.packages import get_package_share_directory
 
 extra_params = {
     "backend": "whisper",    # "whisper" or "faster-whisper"
-    "model_name": "small",   # tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo
+    "compute_type": "float16",     # "float16", "int8", "int8_float16" (faster-whisper only)
+    "model_name": "medium",   # tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo
     "language": "en",
     "task": "transcribe",
     "use_prompt": False,
