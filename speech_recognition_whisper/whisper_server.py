@@ -55,20 +55,25 @@ class WhisperServer(Node):
 
         self.declare_parameter('model_name', 'small')
         self.declare_parameter('backend', 'whisper')
+        self.declare_parameter("compute_type", "float16")
         self.whisper_model_name = self.get_parameter('model_name').get_parameter_value().string_value
         self.backend = self.get_parameter('backend').get_parameter_value().string_value
+        compute_type = self.get_parameter("compute_type").get_parameter_value().string_value
 
         try:
+            load_start = time.time()
             if self.backend == "whisper":
                 import whisper
                 self.model = whisper.load_model(self.whisper_model_name)
                 self.get_logger().info(f"Whisper model '{self.whisper_model_name}' loaded on {self.model.device}.")
             elif self.backend == "faster-whisper":
                 from faster_whisper import WhisperModel
-                self.model = WhisperModel(self.whisper_model_name, device="cuda", compute_type="float16")
+                self.model = WhisperModel(self.whisper_model_name, device="cuda", compute_type=compute_type)
                 self.get_logger().info(f"Faster-Whisper model '{self.whisper_model_name}' loaded.")
             else:
                 raise ValueError(f"Unknown backend: {self.backend}")
+            load_end = time.time()
+            self.get_logger().info(f" モデル読み込み時間: {load_end - load_start:.2f} sec")
         except Exception as e:
             self.get_logger().fatal(f"Failed to load {self.backend} model: {e}")
             self.model = None
@@ -94,8 +99,8 @@ class WhisperServer(Node):
                     self.get_logger().info("WIP feedback model loaded.")
                 elif self.backend == "faster-whisper":
                     from faster_whisper import WhisperModel
-                    self.model_wip = WhisperModel(self.whisper_model_name, device="cuda", compute_type="float16")
-                    self.get_logger().info("WIP feedback model loaded (faster-whisper).")
+                    self.model_wip = WhisperModel(self.whisper_model_name, device="cuda", compute_type=compute_type)
+                    self.get_logger().info(f"WIP Faster-Whisper model '{self.whisper_model_name}' loaded with compute_type={compute_type}")
                 self.vad_processor = VadProcessor(self)
                 self.get_logger().info("VAD model for WIP feedback loaded.")
             except Exception as e:
@@ -264,6 +269,7 @@ class WhisperServer(Node):
 
         try:
             prompt_text = " ".join(self.prompt) if self.use_prompt and self.prompt else ""
+            infer_start = time.time()
             if self.backend == "whisper":
                 result = self.model.transcribe(
                     self.wav_path,
@@ -277,6 +283,8 @@ class WhisperServer(Node):
                 text = " ".join([seg.text for seg in segments]).strip()
             else:
                 text = ""
+            infer_end = time.time()
+            self.get_logger().info(f"推論時間: {infer_end - infer_start:.2f} sec")
                 
             if not text:
                 self.get_logger().warn("No speech recognized.")

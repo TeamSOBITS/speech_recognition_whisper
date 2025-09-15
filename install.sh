@@ -12,6 +12,15 @@ sudo apt install ffmpeg
 yes | sudo apt install -y ros-humble-vision-msgs
 echo "System dependencies installed."
 
+echo "--- Cleaning old cuDNN (if any) ---"
+sudo apt remove -y libcudnn8* libcudnn9* || true
+sudo apt autoremove -y
+
+echo "--- Installing cuDNN 9.x (CUDA 12) ---"
+sudo apt install -y libcudnn9-cuda-12 libcudnn9-dev-cuda-12
+echo " cuDNN 9 installed."
+
+
 echo "--- Installing Python packages via pip3 ---"
 python3 -m pip install -U pip
 python3 -m pip install git+https://github.com/openai/whisper.git 
