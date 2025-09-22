@@ -40,6 +40,12 @@ else
     echo "$sobits_interfaces_REPO repository already exists. Skipping clone."
 fi
 
+echo "--- Install numba ---"
+pip3 install --force-reinstall numba==0.61.2
+
+echo "--- Install coverage ---"
+pip3 install --force-reinstall coverage==6.2
+
 cd $DIR
 
 echo "╚══╣ Install: Speech Recognition Whisper (FINISHED) ╠══╝"
