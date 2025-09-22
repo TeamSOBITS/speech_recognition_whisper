@@ -33,7 +33,7 @@ class VadProcessor(Node):
         self.hop_size = self.get_parameter('hop_size').get_parameter_value().integer_value
         self.threshold = self.get_parameter('threshold').get_parameter_value().double_value
         self.vad_chunk_size_bytes = 2 * 1 * self.hop_size         
-        return self.hop_size, self.vad_chunk_size_bytes
+        return self.hop_size, self.vad_chunk_size_bytes, self.vad_name
     
     def vad_processor(self, resampled_data, feedback_rate):
         if self.vad_model:

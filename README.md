@@ -116,13 +116,13 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 
 | パラメータ | 説明 | デフォルト値 |
 | --- | --- | --- |
-| model | 実行する Whisper モデル *1 | small |
+| model_name | 実行する Whisper モデル *1 | small |
 | language | 音声認識を行う言語．[対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
 | task | 実行するタスク．"transcribe"（文字起こし）または"translate"（英語への翻訳）を選択可能． | transcribe |
 | use_prompt | プロンプトを用いるかどうか | False |
-| use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 | backend | 使用するバックエンド: "whisper" または "faster-whisper" | whisper |
-
+| compute_type | faster-whisper使用時の計算タイプ: "float16" or "int8_float16" or "int8" | float16 |
+| use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 
 *1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．
 Faster-Whisperも同じモデルサイズに対応しますが，推論は高速かつ省メモリです．
@@ -141,6 +141,15 @@ Faster-Whisperも同じモデルサイズに対応しますが，推論は高速
 | hop_size | VADモデルが音声データを処理するチャンク（断片）のサイズ．160 or 256を選択可能．値が小さいほど応答性が上がるが，CPU負荷が増える | 256 |
 | threshold | VADモデルが音声を検出するための確率のしきい値．値を高くすると誤検出が減るが，かすれた声や小さな声が無視される可能性がある | 0.5 |
 | min_wipe_duration | ノイズを無視し音声認識するために必要な声の最短の長さ．VADが発話と認識した区間がこの秒数より短い場合，ノイズとして無視され音声認識の処理を行わない．| 0.2 | 
+| extra_audio_duration_sec | フィードバックごとに音声の前後に含める追加のオーディオ時間 | 0.2 |
+
+`model_name`, `backend`, `compute_type`, `use_feedback`, `vad_name`以外のパラメータはlaunchファイル起動後でも変更可能です．
+
+
+例：min_wipe_durationを0.1に変更する場合
+  ```sh
+  ros2 param set //whisper_server min_wipe_duration 0.1
+  ```
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
  
