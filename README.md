@@ -122,6 +122,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | use_prompt | プロンプトを用いるかどうか | False |
 | backend | 使用するバックエンド: "whisper" または "faster-whisper" | whisper |
 | compute_type | faster-whisper使用時の計算タイプ: "float16" or "int8_float16" or "int8" | float16 |
+| mic_volume | マイクの入力音量をパーセンテージで設定する．例: "150" | "100" |
 | use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 
 *1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．
@@ -143,12 +144,22 @@ Faster-Whisperも同じモデルサイズに対応しますが，推論は高速
 | min_wipe_duration | ノイズを無視し音声認識するために必要な声の最短の長さ．VADが発話と認識した区間がこの秒数より短い場合，ノイズとして無視され音声認識の処理を行わない．| 0.2 | 
 | extra_audio_duration_sec | フィードバックごとに音声の前後に含める追加のオーディオ時間 | 0.2 |
 
-`model_name`, `backend`, `compute_type`, `use_feedback`, `vad_name`以外のパラメータはlaunchファイル起動後でも変更可能です．
+以下はエコーキャンセルに関するパラメータです．
+`use_echo_cancel`が`True`のときに有効です．
+
+| パラメータ | 説明 | デフォルト値 |
+| - | - | - |
+| use_echo_cancel | そのPCのスピーカーからの音をマイクが拾わないようにする． | False |
+| noise_suppression | ノイズを抑制する． | False |
+| analog_gain_control | マイクのハードウェアレベルで入力音量を自動調整する．大きな音は抑え，小さな音は増幅することで音割れや聞き取りにくさを防ぐ． | False |
+| digital_gain_control | ソフトウェアレベルで入力音量を自動調整する．音声データがデジタル化された後に振幅を調整する． | False |
+
+`model_name`, `backend`, `compute_type`, `use_feedback`, `vad_name`, とエコーキャンセル関連以外のパラメータはlaunchファイル起動後でも変更可能です．
 
 
 例：min_wipe_durationを0.1に変更する場合
   ```sh
-  ros2 param set //whisper_server min_wipe_duration 0.1
+  ros2 param set /whisper_server min_wipe_duration 0.1
   ```
 
  <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
@@ -173,6 +184,7 @@ Faster-Whisperも同じモデルサイズに対応しますが，推論は高速
 * [Whisper](https://github.com/openai/whisper)
 * [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper)  
 * [TEN VAD](https://github.com/TEN-framework/ten-vad)
+* [module-echo-cancel](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/Modules/?utm_source=chatgpt.com#module-echo-cancel)
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
