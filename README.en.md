@@ -123,7 +123,7 @@ The following parameters can be set in [speech_recognition_whisper.launch.py](la
 | **`use_prompt`** | Whether to use a prompt to guide the model's predictions. | `False` |
 | **`backend`** | The backend to use: "whisper" or "faster-whisper" | whisper |
 | **`compute_type`** | The computation type when using faster-whisper: "float16", "int8_float16", or "int8" | float16 |
-| **`mic_volume`** | Sets the microphone input volume as a percentage. e.g., "100" | `"100"` |
+| **`mic_volume`** | Sets the microphone input volume as a percentage. When finish program, the original volume will be restored. e.g., "100" | `"100"` |
 | **`use_feedback`** | Whether to enable work-in-progress (WIP) speech recognition feedback. | `True` |
 
 *1 Models are available in increasing order of size: `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, and `large-v3-turbo`. Faster-Whisper supports the same model sizes but offers faster inference and lower memory usage. For more details, refer to the [model list](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013).

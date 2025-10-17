@@ -8,9 +8,9 @@ extra_params = {
     "language": "en",        
     "task": "transcribe",    # "transcribe" or "translate" 
     "use_prompt": False,
-    "backend": "faster-whisper",    # "whisper" or "faster-whisper"
+    "backend": "whisper",    # "whisper" or "faster-whisper"
     "compute_type": "float16", # "float16", "int8_float16", "int8"
-    "mic_volume": "150", 
+    "mic_volume": "", 
     "use_feedback": True,
     "vad_name": "ten_vad",    # "ten_vad" or "None"
     "hop_size": 256,         # 160 or 256

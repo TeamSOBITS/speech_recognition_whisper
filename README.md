@@ -122,7 +122,7 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | use_prompt | プロンプトを用いるかどうか | False |
 | backend | 使用するバックエンド: "whisper" または "faster-whisper" | whisper |
 | compute_type | faster-whisper使用時の計算タイプ: "float16" or "int8_float16" or "int8" | float16 |
-| mic_volume | マイクの入力音量をパーセンテージで設定する．例: "150" | "100" |
+| mic_volume | マイクの入力音量をパーセンテージで設定する．プログラム終了後は元の音量に戻る．例: "150" | "" |
 | use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 
 *1 サイズが小さい順に``tiny``, ``base``, ``small``, ``medium``, ``large``, ``large-v2``, ``large-v3``, ``large-v3-turbo``があります．
