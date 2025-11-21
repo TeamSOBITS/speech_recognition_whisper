@@ -37,10 +37,28 @@ class WhisperServer(Node):
         self.declare_parameter('backend', 'whisper')
         self.declare_parameter("compute_type", "float16")
 
+        self.declare_parameter('use_echo_cancel', False)
+        self.declare_parameter('noise_suppression', False)
+        self.declare_parameter('analog_gain_control', False)
+        self.declare_parameter('digital_gain_control', False)
+        self.declare_parameter('mic_volume', '')
+ 
         self.model_name = self.get_parameter('model_name').get_parameter_value().string_value
         self.use_feedback_enabled = self.get_parameter('use_feedback').get_parameter_value().bool_value
         self.backend = self.get_parameter('backend').get_parameter_value().string_value
         compute_type = self.get_parameter("compute_type").get_parameter_value().string_value
+
+        self.use_echo_cancel = self.get_parameter('use_echo_cancel').get_parameter_value().bool_value
+        self.noise_suppression = self.get_parameter('noise_suppression').get_parameter_value().bool_value
+        self.analog_gain_control = self.get_parameter('analog_gain_control').get_parameter_value().bool_value
+        self.digital_gain_control = self.get_parameter('digital_gain_control').get_parameter_value().bool_value
+        mic_volume_str = self.get_parameter('mic_volume').get_parameter_value().string_value
+        self.mic_volume = mic_volume_str + "%" if mic_volume_str else ""
+
+        self.aec_module_index = None
+        self.original_default_sink = None
+        self.source_to_modify = None
+        self.original_mic_volume = None
         
         self.SOUND_FILES_PATH = os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3')
 
@@ -52,7 +70,6 @@ class WhisperServer(Node):
         self.parec_proc = None
 
         source_name, sample_rate, channels = self.get_pulseaudio_source_info()
-
         if source_name is None:
             self.get_logger().warn("Failed to get default microphone. Using fallback settings.")
             self.source_name = "default"
@@ -65,6 +82,55 @@ class WhisperServer(Node):
         
         self.get_logger().info(f"Microphone: {self.source_name}, Sample rate: {self.sample_rate} Hz, Channels: {self.channels}")
         
+        if self.use_echo_cancel:
+            self.get_logger().info("Echo cancellation is enabled.")
+            self.echo_cancel_source = "mic_aec"
+            self.echo_cancel_sink = "speaker_aec"
+            self.original_default_sink = self.get_default_sink()
+
+            try:
+                aec_args = (
+                    f"noise_suppression={int(self.noise_suppression)} "
+                    f"analog_gain_control={int(self.analog_gain_control)} "
+                    f"digital_gain_control={int(self.digital_gain_control)}"
+                )
+                result = subprocess.run(
+                    [
+                        'pactl', 'load-module', 'module-echo-cancel',
+                        f"source_name={self.echo_cancel_source}",
+                        f"sink_name={self.echo_cancel_sink}",
+                        'aec_method=webrtc',
+                        f'aec_args="{aec_args}"'
+                    ],
+                    check=True, capture_output=True, text=True
+                )
+                self.aec_module_index = int(result.stdout.strip())
+                self.get_logger().info(f"AEC module loaded with index: {self.aec_module_index}")
+                
+                subprocess.run(['pactl', 'set-default-sink', self.echo_cancel_sink], check=True)
+                self.get_logger().info(f"Default sink set to '{self.echo_cancel_sink}'")
+                self.source_to_modify = self.echo_cancel_source 
+                self.original_mic_volume = self.get_source_volume(self.source_to_modify)
+                if self.mic_volume:
+                    subprocess.run(['pactl', 'set-source-volume', self.source_to_modify, self.mic_volume], check=True)
+                    self.get_logger().info(f"Microphone volume set to {self.mic_volume} for '{self.source_to_modify}'")
+            
+            except (subprocess.CalledProcessError, ValueError) as e:
+                self.get_logger().error(f"Failed to load or configure AEC module: {e}")
+                self.use_echo_cancel = False
+                self.source_to_modify = self.source_name
+                self.original_mic_volume = self.get_source_volume(self.source_to_modify)
+                if self.mic_volume:
+                    subprocess.run(['pactl', 'set-source-volume', self.source_to_modify, self.mic_volume], check=True)
+                    self.get_logger().info(f"Fell back to default source. Microphone volume set to {self.mic_volume} for '{self.source_to_modify}'")
+        else:
+            self.source_to_modify = self.source_name
+            self.original_mic_volume = self.get_source_volume(self.source_to_modify)
+            if self.mic_volume:
+                subprocess.run(['pactl', 'set-source-volume', self.source_to_modify, self.mic_volume], check=True)
+                self.get_logger().info(f"Microphone volume set to {self.mic_volume} for '{self.source_to_modify}'")
+        self.get_logger().info(f"Original mic volume for '{self.source_to_modify}' was {self.original_mic_volume}")
+
         try:
             load_start = time.time()
             if self.backend == "whisper":
@@ -144,12 +210,56 @@ class WhisperServer(Node):
             self.get_logger().error(f"PulseAudio source info error: {e}")
             return None, None, None
 
+    def get_default_sink(self):
+        try:
+            info = subprocess.run(['pactl', 'info'], capture_output=True, text=True, check=True)
+            for line in info.stdout.splitlines():
+                if "Default Sink:" in line or "デフォルトシンク:" in line:
+                    return line.split(':', 1)[1].strip()
+            self.get_logger().warn("Default PulseAudio sink not found.")
+            return None
+        except Exception as e:
+            self.get_logger().error(f"Failed to get default sink: {e}")
+            return None
+
     def parse_sample_rate_and_channels(self, lines):
         for line in lines:
             m = self.PULSEAUDIO_SAMPLE_SPEC_PATTERN.match(line)
             if m:
                 return int(m.group(3)), int(m.group(2))
         return None, None
+
+    def get_source_volume(self, source_name):
+        """指定されたPulseAudioソースの現在の音量を取得する"""
+        if not source_name:
+            return None
+        try:
+            list_sources = subprocess.run(['pactl', 'list', 'sources'], capture_output=True, text=True, check=True)
+            source_found = False
+            volume_percent = None
+            for line in list_sources.stdout.splitlines():
+                if f"Name: {source_name}" in line or f"名前: {source_name}" in line:
+                    source_found = True
+                if source_found:
+                    if line.strip().startswith("Source #"):
+                        break  # 次のソースブロックが始まったら終了
+
+                    # 例: "Volume: front-left: 39322 /  60% / -6.00 dB,   front-right: 39322 /  60% / -6.00 dB"
+                    vol_match = re.findall(r'(\d+)%', line)
+                    if vol_match:
+                        # 左右チャンネルがある場合は平均をとる
+                        avg_volume = int(np.mean([int(v) for v in vol_match]))
+                        volume_percent = f"{avg_volume}%"
+                        return volume_percent
+
+            if not source_found:
+                self.get_logger().warn(f"Source '{source_name}' not found in pactl output.")
+            return volume_percent
+
+        except subprocess.CalledProcessError as e:
+            self.get_logger().error(f"Failed to get source volume for '{source_name}': {e}")
+            return None
+
 
     def play_sound(self, filename):
         path = os.path.join(self.SOUND_FILES_PATH, filename)
@@ -200,7 +310,7 @@ class WhisperServer(Node):
         def capture():
             try:
                 proc = subprocess.Popen([
-                    'parec', '-d', self.source_name,
+                    'parec', '-d', self.echo_cancel_source if self.use_echo_cancel else self.source_name,
                     '--format=s16le',
                     '--channels', str(self.channels),
                     '--rate', str(self.sample_rate),
@@ -425,6 +535,29 @@ class WhisperServer(Node):
             self.get_logger().error(f"Failed to save WAV file: {e}")
             return False    
 
+    def cleanup(self):
+        self.get_logger().info("Cleaning up PulseAudio settings...")
+        if self.mic_volume and self.original_mic_volume:
+            if self.source_to_modify: 
+                try:
+                    subprocess.run(['pactl', 'set-source-volume', self.source_to_modify, self.original_mic_volume], check=True, capture_output=True)
+                    self.get_logger().info(f"Restored volume for '{self.source_to_modify}' to its original value: {self.original_mic_volume}.")
+                except subprocess.CalledProcessError as e:
+                    self.get_logger().warn(f"Failed to restore volume for '{self.source_to_modify}': {e.stderr.decode().strip()}")
+
+        if self.use_echo_cancel and self.aec_module_index is not None:
+            if self.original_default_sink:
+                try:
+                    subprocess.run(['pactl', 'set-default-sink', self.original_default_sink], check=True, capture_output=True)
+                    self.get_logger().info(f"Restored default sink to '{self.original_default_sink}'.")
+                except subprocess.CalledProcessError as e:
+                    self.get_logger().warn(f"Failed to restore default sink: {e.stderr.decode().strip()}")
+            try:
+                subprocess.run(['pactl', 'unload-module', str(self.aec_module_index)], check=True, capture_output=True)
+                self.get_logger().info(f"Unloaded AEC module index {self.aec_module_index}.")
+            except subprocess.CalledProcessError as e:
+                self.get_logger().warn(f"Failed to unload AEC module: {e.stderr.decode().strip()}")
+
 def main(args=None):
     rclpy.init(args=args)
     whisper_server = WhisperServer()
@@ -433,6 +566,7 @@ def main(args=None):
     try:
         executor.spin()
     finally:
+        whisper_server.cleanup()
         executor.shutdown()
         whisper_server.destroy_node()
         rclpy.shutdown()

@@ -99,7 +99,6 @@ First, ensure you have the following environment set up before proceeding with t
 <!-- 実行・操作方法 -->
 ## Launch and Usage
 
-### launch the file
 1. In Ubuntu settings, set the input device for sound to the microphone you intend to use.
 
 2. Start the Action Server. Please wait for **Whisper Server is READY and waiting for requests.** to appear before sending any goals.
@@ -122,11 +121,12 @@ The following parameters can be set in [speech_recognition_whisper.launch.py](la
 | **`language`** | The language for speech recognition. See the [list of supported languages](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py). | `en` |
 | **`task`** | The task to perform. You can choose `"transcribe"` for transcription or `"translate"` for translation into English. | `transcribe` |
 | **`use_prompt`** | Whether to use a prompt to guide the model's predictions. | `False` |
-| backend | The backend to use: "whisper" or "faster-whisper" | whisper |
-| compute_type | The computation type when using faster-whisper: "float16", "int8_float16", or "int8" | float16 |
+| **`backend`** | The backend to use: "whisper" or "faster-whisper" | whisper |
+| **`compute_type`** | The computation type when using faster-whisper: "float16", "int8_float16", or "int8" | float16 |
+| **`mic_volume`** | Sets the microphone input volume as a percentage. When finish program, the original volume will be restored. e.g., "100" | `"100"` |
 | **`use_feedback`** | Whether to enable work-in-progress (WIP) speech recognition feedback. | `True` |
 
-*1 Models are available in increasing order of size: `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, and `large-v3-turbo`. For more details, refer to the [model list](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013).
+*1 Models are available in increasing order of size: `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, and `large-v3-turbo`. Faster-Whisper supports the same model sizes but offers faster inference and lower memory usage. For more details, refer to the [model list](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013).
 
 - To change the model, first download it using [install.py](install.py), then change the `model` parameter in [speech_recognition_whisper.launch.py](launch/speech_recognition_whisper.launch.py) to the desired model name.
 
@@ -141,12 +141,22 @@ The following parameters are for feedback and are only enabled when `use_feedbac
 | **`min_wipe_duration`** | The minimum length of a voice segment needed to trigger speech recognition. If the VAD recognizes a voice segment that is shorter than this value in seconds, it's ignored as noise, and the speech recognition process isn't started. | `0.2` |
 | **`extra_audio_duration_sec`** | Additional audio time to include before and after the audio for each feedback. | `0.2` |
 
-Parameters other than `model_name`, `backend`, `compute_type`, `use_feedback`, and `vad_name` can be changed after the launch file is started.
+The following are parameters related to echo cancellation.
+
+| Parameter | Description | Default Value |
+| :--- | :--- | :--- |
+| **`use_echo_cancel`** | It helps prevent the microphone from picking up audio from the speakers. | `False` |
+| **`noise_suppression`** | Toggles the noise suppression feature. | `False` |
+| **`analog_gain_control`** |  Automatically adjusts the microphone input volume at the hardware level. It suppresses loud sounds and amplifies quiet ones to prevent clipping and improve clarity. | `False` |
+| **`digital_gain_control`** |  Automatically adjusts the input volume at the software level. It modifies the amplitude after the audio data has been digitized. | `False` |
+
+Parameters other than `model_name`, `backend`, `compute_type`, `use_feedback`, `vad_name`, and those related to echo cancellation can be changed after the launch file is started.
+
 
 
 Example: To change `min_wipe_duration` to 0.1
   ```sh
-  ros2 param set //whisper_server min_wipe_duration 0.1
+  ros2 param set /whisper_server min_wipe_duration 0.1
   ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -170,7 +180,10 @@ See the [open issues][issues-url] for a full list of proposed features (and know
 ## References
 
 * [Whisper](https://github.com/openai/whisper)
+* [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper)  
 * [TEN VAD](https://github.com/TEN-framework/ten-vad)
+* [module-echo-cancel](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/Modules/?utm_source=chatgpt.com#module-echo-cancel)
+
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
