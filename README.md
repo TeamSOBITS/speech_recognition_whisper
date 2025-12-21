@@ -104,10 +104,20 @@ ROS2のアクション通信に対応させたものです．
 1. Ubuntuの設定で，サウンドの入力デバイスを使用するマイクに設定します．
 
 2. Action Serverを起動します．
-```sh
-ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
-```
+    ```sh
+    ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
+    ```
 3. Action Clientを起動します．
+    - timeout_sec: マイクを開く秒数．負の値のときキャンセルを送信するまでフィードバックを返し続ける
+    - silent_mode: trueのときは検出時と終了時に音がならない
+    - feedback_rate: use_feedbackがTrueでvad_nameがNoneのときに返ってくる途中の音声認識結果の頻度
+    ```sh
+    ros2 action send_goal /speech_recognition sobits_interfaces/action/SpeechRecognition "timeout_sec: 5
+    silent_mode: false
+    feedback_rate: 0.5" -f
+    ```
+    録音された音声はsound_fileディレクトリに保存されます．
+
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
@@ -118,10 +128,11 @@ ros2 launch speech_recognition_whisper speech_recognition_whisper.launch.py
 | --- | --- | --- |
 | model_name | 実行する Whisper モデル *1 | small |
 | language | 音声認識を行う言語．[対応言語一覧](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py) | en |
-| task | 実行するタスク．"transcribe"（文字起こし）または"translate"（英語への翻訳）を選択可能． | transcribe |
+| task | 実行するタスク．`transcribe`（文字起こし）または`translate`（英語への翻訳）を選択可能． | transcribe |
 | use_prompt | プロンプトを用いるかどうか | False |
-| backend | 使用するバックエンド: "whisper" または "faster-whisper" | whisper |
-| compute_type | faster-whisper使用時の計算タイプ: "float16" or "int8_float16" or "int8" | float16 |
+| backend | 使用するバックエンド: `whisper` または `faster-whisper` | whisper |
+| device | 使用する計算デバイス (`cpu` or `cuda`)．空の場合，利用可能なGPUがあれば優先的に選択し，なければCPUが自動選択される．| "" |
+| compute_type | faster-whisper使用時の計算タイプ: `float16` or `int8_float16` or `int8` | float16 |
 | mic_volume | マイクの入力音量をパーセンテージで設定する．プログラム終了後は元の音量に戻る．例: "150" | "" |
 | use_feedback | 音声認識の途中結果(フィードバック)を有効にするかどうか | True |
 
@@ -139,10 +150,11 @@ Faster-Whisperも同じモデルサイズに対応しますが，推論は高速
 | パラメータ | 説明 | デフォルト値 |
 | - | - | - |
 | vad_name | フィードバックの際に使用する音声アクティビティ検出(VAD)の手法．VADの使用によりフィードバックの認識精度が向上する．``None``を選択するとVADを使用せずAction Clientで指定したFeedback Rateの秒数ごとに音声認識を行う． | ten_vad |
-| hop_size | VADモデルが音声データを処理するチャンク（断片）のサイズ．160 or 256を選択可能．値が小さいほど応答性が上がるが，CPU負荷が増える | 256 |
+| hop_size | VADモデルが音声データを処理するチャンク（断片）のサイズ．`160` or `256`を選択可能．値が小さいほど応答性が上がるが，CPU負荷が増える | 256 |
 | threshold | VADモデルが音声を検出するための確率のしきい値．値を高くすると誤検出が減るが，かすれた声や小さな声が無視される可能性がある | 0.5 |
 | min_wipe_duration | ノイズを無視し音声認識するために必要な声の最短の長さ．VADが発話と認識した区間がこの秒数より短い場合，ノイズとして無視され音声認識の処理を行わない．| 0.2 | 
 | extra_audio_duration_sec | フィードバックごとに音声の前後に含める追加のオーディオ時間 | 0.2 |
+| max_speech_duration | 1回の発話を区切る最大秒数．| 30.0 |
 
 以下はエコーキャンセルに関するパラメータです．
 `use_echo_cancel`が`True`のときに有効です．

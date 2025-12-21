@@ -107,7 +107,15 @@ First, ensure you have the following environment set up before proceeding with t
     ```
 
 3. Start the Action Client and send the text you want to speak.
+    - timeout_sec: Duration (in seconds) to keep the microphone open. If a negative value is provided, it continues to return feedback until a cancel request is sent.
+    - silent_mode: If set to `true`, the start and end notification sounds will not be played.
+    - feedback_rate: Specifies the frequency of intermediate speech recognition results when `use_feedback` is `True` and `vad_name` is `None`.
 
+    ```sh
+    ros2 action send_goal /speech_recognition sobits_interfaces/action/SpeechRecognition "timeout_sec: 5
+    silent_mode: false
+    feedback_rate: 0.5" -f
+    ```
     Recorded audio is saved in the sound_file directory.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -122,6 +130,7 @@ The following parameters can be set in [speech_recognition_whisper.launch.py](la
 | **`task`** | The task to perform. You can choose `"transcribe"` for transcription or `"translate"` for translation into English. | `transcribe` |
 | **`use_prompt`** | Whether to use a prompt to guide the model's predictions. | `False` |
 | **`backend`** | The backend to use: "whisper" or "faster-whisper" | whisper |
+| device | Computing device to use (`cpu` or `cuda`). If left empty, it automatically selects GPU if available, otherwise falls back to CPU.| "" |
 | **`compute_type`** | The computation type when using faster-whisper: "float16", "int8_float16", or "int8" | float16 |
 | **`mic_volume`** | Sets the microphone input volume as a percentage. When finish program, the original volume will be restored. e.g., "100" | `"100"` |
 | **`use_feedback`** | Whether to enable work-in-progress (WIP) speech recognition feedback. | `True` |
@@ -140,6 +149,7 @@ The following parameters are for feedback and are only enabled when `use_feedbac
 | **`threshold`** | The probability threshold for the VAD model to detect a voice. A higher value reduces false positives but might cause faint or quiet voices to be ignored. | `0.5` |
 | **`min_wipe_duration`** | The minimum length of a voice segment needed to trigger speech recognition. If the VAD recognizes a voice segment that is shorter than this value in seconds, it's ignored as noise, and the speech recognition process isn't started. | `0.2` |
 | **`extra_audio_duration_sec`** | Additional audio time to include before and after the audio for each feedback. | `0.2` |
+| max_speech_duration | Maximum duration (in seconds) to segment a single utterance.| 30.0 |
 
 The following are parameters related to echo cancellation.
 
