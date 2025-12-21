@@ -5,11 +5,10 @@ echo "╔══╣ Install: Speech Recognition Whisper (STARTING) ╠══╗"
 DIR=$(pwd)
 
 sudo apt update -y
-
 sudo apt install pulseaudio-utils -y
-sudo apt install ffmpeg
+sudo apt install ffmpeg -y
+sudo apt install libc++1 -y
 
-yes | sudo apt install -y ros-humble-vision-msgs
 echo "System dependencies installed."
 
 echo "--- Installing Python packages via pip3 ---"
@@ -20,10 +19,15 @@ echo "--- Installing Faster-Whisper ---"
 python3 -m pip install -U faster-whisper
 
 echo "--- Installing VAD ---"
-
 pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git
 
-sudo apt install libc++1 -y
+pip3 install --force-reinstall numpy==1.24.4
+
+echo "--- Install numba ---"
+pip3 install --force-reinstall numba==0.61.2
+
+echo "--- Install coverage ---"
+pip3 install --force-reinstall coverage==6.2
 
 cd $DIR
 python3 install.py
@@ -39,13 +43,6 @@ if [ ! -d "$sobits_interfaces_REPO" ]; then
 else
     echo "$sobits_interfaces_REPO repository already exists. Skipping clone."
 fi
-
-echo "--- Install numba ---"
-pip3 install --force-reinstall numba==0.61.2
-
-echo "--- Install coverage ---"
-pip3 install --force-reinstall coverage==6.2
-
 cd $DIR
 
 echo "╚══╣ Install: Speech Recognition Whisper (FINISHED) ╠══╝"
