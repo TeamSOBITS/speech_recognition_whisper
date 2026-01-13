@@ -38,7 +38,10 @@ class WhisperServer(Node):
         self.declare_parameter('noise_suppression', False)
         self.declare_parameter('analog_gain_control', False)
         self.declare_parameter('digital_gain_control', False)
-        self.declare_parameter('mic_volume', '')
+        try:
+            self.declare_parameter('mic_volume', '')
+        except rclpy.exceptions.InvalidParameterTypeException:
+            self.declare_parameter('mic_volume', 100)
  
         self.model_name = self.get_parameter('model_name').get_parameter_value().string_value
         self.use_feedback_enabled = self.get_parameter('use_feedback').get_parameter_value().bool_value
@@ -50,8 +53,15 @@ class WhisperServer(Node):
         self.noise_suppression = self.get_parameter('noise_suppression').get_parameter_value().bool_value
         self.analog_gain_control = self.get_parameter('analog_gain_control').get_parameter_value().bool_value
         self.digital_gain_control = self.get_parameter('digital_gain_control').get_parameter_value().bool_value
-        mic_volume_str = self.get_parameter('mic_volume').get_parameter_value().string_value
-        self.mic_volume = mic_volume_str + "%" if mic_volume_str else ""
+        param = self.get_parameter('mic_volume')
+        mic_volume_raw = str(param.value) if param.value is not None else ""
+
+        if mic_volume_raw.strip() != "" and mic_volume_raw.strip() != "None":
+            self.mic_volume = mic_volume_raw if '%' in mic_volume_raw else f"{mic_volume_raw}%"
+            self.get_logger().info(f"Setting microphone volume to: {self.mic_volume}")
+        else:
+            self.mic_volume = ""
+            self.get_logger().info("Microphone volume: Using system default (no change).")
 
         self.aec_module_index = None
         self.original_default_sink = None
@@ -283,9 +293,19 @@ class WhisperServer(Node):
 
             if goal_handle.is_cancel_requested:
                 self.get_logger().info("Goal canceled")
-                goal_handle.canceled()
+                
                 if proc_container["proc"]:
-                    proc_container["proc"].terminate()
+                    proc = proc_container["proc"]
+                    self.get_logger().info("Terminating recording process due to cancellation...")
+                    try:
+                        proc.terminate()
+                        proc.wait(timeout=1.0)
+                    except subprocess.TimeoutExpired:
+                        self.get_logger().warn("Process did not terminate. Killing it...")
+                        proc.kill()
+                        proc.wait()
+                
+                goal_handle.canceled()
                 return response
 
             try:
@@ -335,7 +355,15 @@ class WhisperServer(Node):
                             pre_audio_buffer.append(vad_chunk)
 
         if proc_container["proc"]:
-            proc_container["proc"].terminate()
+            proc = proc_container["proc"]
+            try:
+                proc.terminate()
+                proc.wait(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                self.get_logger().warn("Process did not terminate in time. Killing it...")
+                proc.kill() 
+                proc.wait() 
+                
         thread.join(timeout=2.0)
         if not silent:
             threading.Thread(target=audio_utils.play_sound, args=('end_sound.mp3', self.SOUND_FILES_PATH, self.get_logger())).start()
