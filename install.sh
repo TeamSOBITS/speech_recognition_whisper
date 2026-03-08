@@ -21,7 +21,7 @@ python3 -m pip install -U faster-whisper
 echo "--- Installing VAD ---"
 pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git
 
-pip3 install --force-reinstall numpy==1.24.4
+pip3 install --force-reinstall numpy==1.26.4
 
 echo "--- Install numba ---"
 pip3 install --force-reinstall numba==0.61.2
