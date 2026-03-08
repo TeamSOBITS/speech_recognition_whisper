@@ -75,7 +75,7 @@ ROS2のアクション通信に対応させたものです．
    ```
 2. 本レポジトリをcloneします．
    ```sh
-   git clone -b humble-devel https://github.com/TeamSOBITS/speech_recognition_whisper.git
+   git clone -b jazzy-devel https://github.com/TeamSOBITS/speech_recognition_whisper.git
    ```
 3. レポジトリの中へ移動します．
    ```sh
