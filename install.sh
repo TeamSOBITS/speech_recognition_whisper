@@ -7,6 +7,7 @@ DIR=$(pwd)
 sudo apt update -y
 sudo apt install pulseaudio-utils -y
 sudo apt install libc++1 -y
+sudo apt install ffmpeg -y
 
 echo "System dependencies installed."
 

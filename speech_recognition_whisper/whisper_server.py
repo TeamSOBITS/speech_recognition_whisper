@@ -12,9 +12,14 @@ import os
 import wave
 import importlib
 import traceback
-
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from . import audio_utils
-from .vad import VadProcessor, VadSegmenter
+try:
+    from .vad import VadProcessor, VadSegmenter
+    VAD_AVAILABLE = True
+except ImportError:
+    VAD_AVAILABLE = False
 
 class STTActionServer(Node):
     def __init__(self):
@@ -32,14 +37,15 @@ class STTActionServer(Node):
         self.declare_parameter('hop_size', 256)
         self.declare_parameter('threshold', 0.5)
 
-        share_dir = get_package_share_directory('speech_recognition_whisper')
+        self.package_name = 'speech_recognition_whisper'
+        share_dir = get_package_share_directory(self.package_name)
         self.sound_file_directory = os.path.join(share_dir, 'sound_file')
         os.makedirs(self.sound_file_directory, exist_ok=True)
 
         self._stt_model_instance = None
         try:
-            module_path = f'speech_recognition_whisper.engines.{self.stt_name}_engine'
-            stt_model_module = importlib.import_module(module_path)
+            module_name = f'.engines.{self.stt_name}_engine'
+            stt_model_module = importlib.import_module(module_name, package=self.package_name)
             class_name = f"{self.stt_name.capitalize()}Engine"
             ModelClass = getattr(stt_model_module, class_name)
             self._stt_model_instance = ModelClass(node=self)
@@ -51,6 +57,7 @@ class STTActionServer(Node):
             raise RuntimeError("Engine load failed.")
 
         self._init_audio_components()
+        self.executor_pool = ThreadPoolExecutor(max_workers=1)
 
         self._action_server = ActionServer(
             self, SpeechRecognition, "speech_recognition",
@@ -71,6 +78,9 @@ class STTActionServer(Node):
         self.declare_parameter('mic_volume', '100%')
 
         if self._stt_model_instance.use_external_vad:
+            if not VAD_AVAILABLE:
+                self.get_logger().error("VAD module is required by engine but not found!")
+                raise RuntimeError("VAD import failed.")
             self.vad_processor = VadProcessor(self)
             self.hop_size, self.vad_chunk_size_bytes, _ = self.vad_processor.get_specs()
         else:
@@ -88,7 +98,11 @@ class STTActionServer(Node):
         self.player = audio_utils.AudioPlayer(self.get_logger(), os.path.join(get_package_share_directory('sobits_interfaces'), 'mp3'))
         self.storage = audio_utils.AudioStorage(self.get_logger(), self.sound_file_directory)
 
-    def goal_callback(self, goal_request): return GoalResponse.ACCEPT
+    def goal_callback(self, goal_request):
+        if self.audio_sys.is_running:
+            return GoalResponse.REJECT
+        return GoalResponse.ACCEPT
+
     def cancel_callback(self, goal_handle): return CancelResponse.ACCEPT
 
     async def execute_callback(self, goal_handle):
@@ -107,11 +121,12 @@ class STTActionServer(Node):
             self._stt_model_instance.init_stream()
 
         start_time = time.time()
+        last_audio_time = time.time()
         audio_started = False
         file_counter = 0
 
         segmenter = None
-        if self._stt_model_instance.use_external_vad:
+        if self._stt_model_instance.use_external_vad and VAD_AVAILABLE:
             segmenter = VadSegmenter(
                 self.vad_processor, 
                 self.get_parameter('min_wipe_duration').value,
@@ -119,11 +134,26 @@ class STTActionServer(Node):
                 self.get_parameter('extra_audio_duration_sec').value
             )
 
+        def process_recognition(wav_path):
+            try:
+                text = self._stt_model_instance.transcribe(wav_path)
+                if text and use_feedback:
+                    self.get_logger().info(f"\033[96m[Feedback]\033[0m {text}")
+                    fb = SpeechRecognition.Feedback()
+                    fb.addition_text = text
+                    goal_handle.publish_feedback(fb)
+            except Exception as e:
+                self.get_logger().error(f"Async Transcribe Error: {e}")
+            finally:
+                if os.path.exists(wav_path):
+                    os.remove(wav_path)
+
         try:
             while rclpy.ok():
                 now = time.time()
                 if audio_started:
                     if timeout_sec > 0 and (now - start_time) > timeout_sec: break
+                    if (now - last_audio_time) > 5.0: break
                 elif (now - start_time) > 10.0: break
 
                 if goal_handle.is_cancel_requested:
@@ -137,12 +167,13 @@ class STTActionServer(Node):
                     audio_started = True
                     start_time = time.time()
 
+                last_audio_time = now
                 self.storage.write_chunk(chunk_np)
 
                 if self._stt_model_instance.is_streamable:
                     text = self._stt_model_instance.put_chunk(chunk_np)
                     if text and use_feedback:
-                        self.get_logger().info(f"\033[94m[Partial]\033[0m {text}")
+                        self.get_logger().info(f"\033[94m[Stream]\033[0m {text}")
                         fb = SpeechRecognition.Feedback()
                         fb.addition_text = text
                         goal_handle.publish_feedback(fb)
@@ -153,12 +184,7 @@ class STTActionServer(Node):
                         file_counter += 1
                         path = os.path.join(self.sound_file_directory, f'feedback_{file_counter}.wav')
                         if self._save_wav(speech_segment, path):
-                            text = self._stt_model_instance.transcribe(path)
-                            if text and use_feedback:
-                                self.get_logger().info(f"\033[96m\033[0m {text}")
-                                fb = SpeechRecognition.Feedback()
-                                fb.addition_text = text
-                                goal_handle.publish_feedback(fb)
+                            self.executor_pool.submit(process_recognition, path)
 
         finally:
             self.audio_sys.stop()
@@ -169,7 +195,7 @@ class STTActionServer(Node):
 
         final_path = os.path.join(self.sound_file_directory, "final_output.wav")
         final_text = self._stt_model_instance.transcribe(final_path)
-        
+
         GREEN, ENDC = '\033[92m', '\033[0m'
         self.get_logger().info(f"{GREEN} FINAL RESULT: {final_text}{ENDC}")
         
@@ -182,10 +208,13 @@ class STTActionServer(Node):
                 wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(16000)
                 for c in data_list: wf.writeframes(c.tobytes())
             return True
-        except: return False
+        except Exception as e:
+            self.get_logger().error(f"Save WAV failed: {e}")
+            return False
 
     def destroy_node(self):
         if hasattr(self, 'audio_sys'): self.audio_sys.stop()
+        if hasattr(self, 'executor_pool'): self.executor_pool.shutdown()
         super().destroy_node()
 
 def main(args=None):

@@ -11,7 +11,7 @@ class WhisperEngine(BaseEngine):
         self.node.declare_parameter('model_name', 'small')
         self.node.declare_parameter('compute_type', 'float16')
         self.node.declare_parameter('device', '')
-        self.node.declare_parameter('language', 'ja')
+        self.node.declare_parameter('language', 'en')
         self.node.declare_parameter('task', 'transcribe')
         self.node.declare_parameter('use_prompt', False)
         self.node.declare_parameter('replace_prompt_whisper', [""])
