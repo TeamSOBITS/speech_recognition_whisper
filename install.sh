@@ -6,28 +6,28 @@ DIR=$(pwd)
 
 sudo apt update -y
 sudo apt install pulseaudio-utils -y
-sudo apt install ffmpeg -y
 sudo apt install libc++1 -y
 
 echo "System dependencies installed."
 
 echo "--- Installing Python packages via pip3 ---"
-python3 -m pip install -U pip
-python3 -m pip install git+https://github.com/openai/whisper.git 
+python3 -m pip install -U pip --break-system-packages
+python3 -m pip install git+https://github.com/openai/whisper.git --break-system-packages
 
 echo "--- Installing Faster-Whisper ---"
-python3 -m pip install -U faster-whisper
+python3 -m pip install -U faster-whisper --break-system-packages
 
 echo "--- Installing VAD ---"
-pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git
+pip3 install -U --force-reinstall -v git+https://github.com/TEN-framework/ten-vad.git --break-system-packages
 
-pip3 install --force-reinstall numpy==1.24.4
 
 echo "--- Install numba ---"
-pip3 install --force-reinstall numba==0.61.2
+pip3 install --force-reinstall numba==0.61.2 --break-system-packages
+
+pip3 install --force-reinstall "numpy==1.26.4" --break-system-packages
 
 echo "--- Install coverage ---"
-pip3 install --force-reinstall coverage==6.2
+pip3 install --force-reinstall coverage==6.2 --break-system-packages
 
 cd $DIR
 python3 install.py
@@ -38,7 +38,7 @@ sobits_interfaces_REPO="sobits_interfaces"
 # Check if the repository already exists
 if [ ! -d "$sobits_interfaces_REPO" ]; then
     echo "Cloning $sobits_interfaces_REPO repository..."
-    git clone -b humble-devel https://github.com/TeamSOBITS/sobits_interfaces.git
+    git clone -b jazzy-devel https://github.com/TeamSOBITS/sobits_interfaces.git
     echo "$sobits_interfaces_REPO cloned successfully."
 else
     echo "$sobits_interfaces_REPO repository already exists. Skipping clone."

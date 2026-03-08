@@ -61,9 +61,9 @@ ROS2のアクション通信に対応させたものです．
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 22.04 (Jammy Jellyfish) |
-| ROS | Humble Hawksbill |
-| Python | 3.10 |
+| Ubuntu | 24.04 (Noble Numbat) |
+| ROS | Jazzy Jalisco |
+| Python | 3.12 |
 
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
